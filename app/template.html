@@ -1657,6 +1657,34 @@ const Saved = (() => {
   const gameOf = (team, week) => SCH.find((r) => r[0] === SEASON && r[1] === week && (r[3] === team || r[4] === team));
   const key = (team, week) => team + "|" + week;
   function sideLine(r, team) { return r[6] === null ? null : r[4] === team ? -r[6] : r[6]; }
+  // Lines you type in yourself (your book moved them). Kept in this browser only, and dropped if the data later changes.
+  const OVK = "re-lineov-v1";
+  const ovLoad = () => { try { return JSON.parse(localStorage.getItem(OVK) || "{}"); } catch (e) { return {}; } };
+  const ovSave = (o) => { try { localStorage.setItem(OVK, JSON.stringify(o)); } catch (e) {} };
+  const ovKey = (lg, r) => [lg, r[0], r[1], r[3], r[4]].join("|");
+  function applyLineOv() {
+    const o = ovLoad();
+    for (const [lg, sch] of [["nfl", D.sched], ["cfb", COL ? COL.sched : []]]) for (const r of sch) {
+      if (r[0] < (lg === "cfb" ? COL.season : D.season)) continue;
+      const e = o[ovKey(lg, r)]; if (!e) continue;
+      if (r.orig === undefined) r.orig = [r[6], r[7]];
+      if (r.orig[0] !== e.os || r.orig[1] !== e.ot) { delete o[ovKey(lg, r)]; ovSave(o); r.orig = undefined; continue; }
+      r[6] = e.s; r[7] = e.t;
+    }
+  }
+  const lineEdited = (g) => g.orig !== undefined && (g.orig[0] !== g[6] || g.orig[1] !== g[7]);
+  function setGameLine(g, spread, total) {
+    const o = ovLoad(), k = ovKey(LG, g);
+    if (g.orig === undefined) g.orig = [g[6], g[7]];
+    if (spread !== undefined) g[6] = spread;
+    if (total !== undefined) g[7] = total;
+    if (g[6] === g.orig[0] && g[7] === g.orig[1]) delete o[k]; else o[k] = { s: g[6], t: g[7], os: g.orig[0], ot: g.orig[1] };
+    ovSave(o);
+    // keep the teaser table and slip in step with the new number
+    for (const t of [g[3], g[4]]) { delete S.ov[key(t, g[1])]; S.legs.forEach((l) => { if (l.week === g[1] && lt(l) === "spread" && l.team === t) l.line = sideLine(g, t); }); }
+  }
+  const resetGameLine = (g) => { if (g.orig) setGameLine(g, g.orig[0], g.orig[1]); };
+  applyLineOv();
   const lt = (l) => l.type || "spread";
   const isTeamTot = (t) => t === "tover" || t === "tunder";
   const isOv = (t) => t === "tover" || t === "over";
@@ -1808,6 +1836,9 @@ const Saved = (() => {
       `<button type="button" class="chip ${on ? "" : "primary"}" data-ac="save">${on ? "★ Saved. Tap to remove" : "☆ Save this pick"}</button>` +
       `<button type="button" class="chip ${inSlip ? "" : "primary"}" data-ac="tease">${inSlip ? "Remove from teaser" : `+ Add to teaser (${S.pts} pts → ${spr(Math.round((line + S.pts) * 10) / 10)})`}</button>` +
       `<button type="button" class="chip" data-ac="team">${esc(team)} trends and stats</button></div>` +
+      `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">Line moved? Type your book's numbers${lineEdited(g) ? " (edited)" : ""}</span><div class="chips"><label class="sub" style="margin:0">${esc(team)} spread <input class="proj-in" id="ac-sp" type="number" step="0.5" inputmode="decimal" value="${line === null ? "" : line}" style="width:80px"></label>` +
+        `<label class="sub" style="margin:0">Game total <input class="proj-in" id="ac-gt" type="number" step="0.5" inputmode="decimal" value="${g[7] === null ? "" : g[7]}" style="width:80px"></label>` +
+        (lineEdited(g) ? `<button type="button" class="chip" data-ac="lreset">Back to ${esc(team)} ${spr(g.orig[0] === null ? null : g[4] === team ? -g.orig[0] : g.orig[0])}</button>` : "") + `</div><p class="notes" style="margin:4px 0 0">Changes the line everywhere (Lines, Teasers, team total, tease buttons) on this device.</p></div>` +
       (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">${esc(team)} team total (type your book's number)</span><div class="chips"><input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:90px">` +
         `<button type="button" class="chip" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over</button><button type="button" class="chip" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under</button></div><p class="notes" style="margin:4px 0 0">Starts at the expected score (${imp}). Change it to your book's line.</p></div>`) +
       `<div class="setrow" style="margin:12px 0 4px"><span class="lbl">Tease the game total (${S.pts} pts)</span><div class="chips">` +
@@ -1834,8 +1865,16 @@ const Saved = (() => {
       else { const v = isTeamTot(ty) ? parseFloat($("ac-tt").value) : g[7]; if (Number.isFinite(v)) { if (isTeamTot(ty)) actTT = v; addLeg(tm, g[1], v, ty); } }
       openAct(g, team);
     }
+    else if (k === "lreset") { resetGameLine(g); render(); openAct(g, team); }
     else if (k === "team") { $("ac-modal").hidden = true; openTeam(team); }
     else if (k === "view") { $("ac-modal").hidden = true; S.mode = "tease"; S.week = g[1]; render(); }
+  });
+  $("ac-modal").addEventListener("change", (e) => {
+    if (!act || !(e.target.id === "ac-sp" || e.target.id === "ac-gt")) return;
+    const { g, team } = act, v = parseFloat(e.target.value);
+    if (!Number.isFinite(v)) { openAct(g, team); return; }
+    if (e.target.id === "ac-sp") setGameLine(g, g[4] === team ? -v : v, undefined); else setGameLine(g, undefined, v);
+    actTT = null; render(); openAct(g, team);
   });
   $("ac-close").addEventListener("click", () => { $("ac-modal").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("ac-modal").hidden) $("ac-modal").hidden = true; });
