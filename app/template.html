@@ -236,7 +236,7 @@ input.proj-in[type="number"] { height: 30px; width: 72px; border-radius: 6px; te
 #p-table { min-width: 800px; }
 .mini .short, .hl .short { display: none; }
 @media (max-width: 520px) {
-  #p-body th.gm, #p-body td.gm, #p-body th.fl, #p-body td.fl, #z-slip .gm, #z-slip .fl, #z-table .gm, #z-table .fl { display: none; }
+  #p-body th.gm, #p-body td.gm, #p-body th.fl, #p-body td.fl, #z-slip .gm, #z-slip .fl, #z-table .gm, #z-table .fl, #l-table td .sub.fl { display: none; }
   #p-body table, #z-slip table, #z-table { font-size: 14px; min-width: 0; }
   #p-body td, #p-body th, #z-slip td, #z-slip th, #z-table td, #z-table th { padding: 8px 4px; }
   #z-slip input.proj-in[type="number"], #z-table input.proj-in[type="number"] { width: 56px; }
@@ -322,12 +322,13 @@ tr.mine td { background: var(--accent-soft); }
 tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 6px 10px; }
 .cellbtn { display: block; width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: right; cursor: pointer; padding: 0; }
 .cellbtn[aria-pressed="true"] strong::before { content: "★ "; color: var(--star); }
-.ou { display: inline-flex; gap: 4px; margin-top: 4px; }
+.ou { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
 .ou .mini { padding: 2px 8px; font-size: 12px; }
 .ou .mini[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#l-table td .sub { display: block; white-space: nowrap; font-size: 12px; }
 .tmpill { background: none; border: 0; padding: 0; cursor: pointer; }
 .dr-foot textarea { width: 100%; font: 12px/1.3 monospace; }
-@media (max-width: 520px) { .top { flex-wrap: wrap; } .top .btns { justify-content: flex-start; } }
+@media (max-width: 520px) { #l-table th, #l-table td { padding: 8px 2px; } #l-table .iml, #l-table .h2h { display: none; } #l-table { table-layout: fixed; width: 100%; min-width: 0; } #l-table th:nth-child(1), #l-table th:nth-child(4) { width: 17%; } #l-table th:nth-child(2), #l-table th:nth-child(3) { width: 24%; } #l-table th:nth-child(5) { width: 18%; } #l-table th { font-size: 10px; letter-spacing: 0; } #l-table .ou .mini { padding: 2px 5px; min-width: 0; min-height: 0; font-size: 11px; } #l-table td { white-space: nowrap; } #l-table tr.grp td { white-space: normal; } #l-table .cellbtn strong { font-size: 16px; } #l-table td.num { padding-right: 3px; } .top { flex-wrap: wrap; } .top .btns { justify-content: flex-start; } }
 </style>
 
 <main class="wrap">
@@ -539,6 +540,7 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
     <div class="chips" id="z-mode" role="group" aria-label="Show"></div>
     <div id="z-lines" style="margin-top:12px">
       <div class="controls pc"><div class="field"><label class="lbl" for="l-week">Week</label><select id="l-week"></select></div></div>
+      <div class="chips" id="l-filter" role="group" aria-label="Filter games" style="margin:0 0 8px"></div>
       <p class="tiles-head" id="l-head" style="margin:0"></p>
       <section class="panel" aria-label="Spreads"><div class="tablewrap" style="margin-top:0"><table id="l-table"></table></div></section>
       <p class="notes" id="l-notes">Road team on the left, home team on the right. The number is each team's spread (minus means favored). The small percent under each spread (and the shading) is how often teams with a similar spread since 2015 covered it straight up: green is above 50%, red is below, and it stays close to even because books set these lines to be about fair. Lines come from one free data file, so they can differ a little from your book. Type over a line on the Teasers view to match yours.</p>
@@ -639,6 +641,12 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="tm-title" tabindex="-1">
     <button type="button" class="mini modal-x" id="tm-close" aria-label="Close">✕</button>
     <div id="tm-body"></div>
+  </div>
+</div>
+<div class="modal" id="pc-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pc-title" tabindex="-1">
+    <button type="button" class="mini modal-x" id="pc-close" aria-label="Close">✕</button>
+    <div id="pc-body"></div>
   </div>
 </div>
 <div class="tip" id="tip" hidden></div>
@@ -1035,6 +1043,48 @@ const Saved = (() => {
     return `<tr><td>${esc(label)}</td><td class="num">${r.n}${flag}</td><td class="num">${r.n ? `${r.over} (${pct(r.over, r.n)})` : "–"}</td><td class="num">${r.n ? `${r.under} (${pct(r.under, r.n)})` : "–"}</td><td class="num">${r.push}</td><td class="num">${fmt(r.avg)}</td><td class="num">${fmt(r.median)}</td></tr>`;
   }
 
+  // ---- player card pop-up ----
+  const CARD_COLS = {
+    QB: [["Pass yds", 6], ["Pass TD", 7], ["Att", 11], ["Rush yds", 8]],
+    RB: [["Carries", 12], ["Rush yds", 8], ["Targets", 13], ["Rec", 10], ["Rec yds", 9]],
+    WR: [["Targets", 13], ["Rec", 10], ["Rec yds", 9]],
+    TE: [["Targets", 13], ["Rec", 10], ["Rec yds", 9]],
+  };
+  function openCard(p) {
+    const gs = D.games[p.id], cols = CARD_COLS[p.pos], cur = gs.filter((g) => g[0] === D.season && g[2] === 0);
+    const avg = (rows, i) => (rows.length ? Math.round((rows.reduce((a, g) => a + g[i], 0) / rows.length) * 10) / 10 : null);
+    const nx = D.next && D.next[p.team];
+    const sg = nx && D.sched.find((r) => r[0] === D.season && r[1] === nx.week && (r[3] === p.team || r[4] === p.team));
+    const imp = sg && sg[6] !== null && sg[7] !== null ? (sg[4] === p.team ? (sg[7] + sg[6]) / 2 : (sg[7] - sg[6]) / 2) : null;
+    const nm2 = (t) => TEAM_NAMES[t] || t;
+    const rows = POS_STATS[p.pos].map((k) => {
+      const smp = getSample(gs, k, false), line = defaultLine(smp, k), r = summarize(smp.slice(-10), STATS[k].idx, line), saved = Saved.hasProp(p.id, k, line, "over");
+      return `<tr><td>${STATS[k].label}</td><td class="num">${k === "any_td" ? "Anytime" : line}</td><td class="num">${r.n ? `${r.over} of ${r.n} · <strong>${pct(r.over, r.n)}</strong>` : "–"}</td><td><button type="button" class="mini" data-cgo="${k}|${line}">Open</button> <button type="button" class="star" data-csave="${k}|${line}" aria-pressed="${saved}" aria-label="Save ${esc(STATS[k].label)} over ${line}">${saved ? "★" : "☆"}</button></td></tr>`;
+    }).join("");
+    $("pc-body").innerHTML = `<h2 id="pc-title">${esc(p.name)}</h2><p class="meta">${p.pos} · ${teamPill(p.team)}${nx ? ` · next: ${nx.home ? "vs" : "at"} ${teamPill(nx.opp)} week ${nx.week}${imp !== null ? ` · ${esc(nm2(p.team))} implied ${imp} pts` : ""}` : ""}</p>` +
+      `<div class="stats">` + cols.slice(0, 4).map(([l, i]) => `<div class="stat"><span class="k">${l}</span><span class="v">${avg(cur, i) === null ? "–" : avg(cur, i)}</span><span class="n">${D.season} avg, ${cur.length} games</span></div>`).join("") + `</div>` +
+      `<h3 style="margin:10px 0 4px;font-size:14px">Each stat at his usual line (median of his last 10)</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Stat</th><th class="num">Line</th><th class="num">Last 10 over</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` +
+      `<h3 style="margin:14px 0 4px;font-size:14px">Last 10 games</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Game</th>` + cols.map(([l]) => `<th class="num">${l}</th>`).join("") + `</tr></thead><tbody>` +
+      gs.slice(-10).reverse().map((g) => `<tr><td>${g[0]} ${wkShort(g)} ${vsAt(g)} ${esc(g[4])}</td>` + cols.map(([, i]) => `<td class="num">${g[i]}</td>`).join("") + `</tr>`).join("") + `</tbody></table></div>` +
+      `<p class="notes" style="margin-top:8px">Tap Open to put his page on that stat and line. The star saves it as an over prop.</p>`;
+    $("pc-modal").hidden = false;
+    $("pc-modal").querySelector(".modal-card").focus();
+  }
+  const closeCard = () => { $("pc-modal").hidden = true; };
+  $("pc-close").addEventListener("click", closeCard);
+  $("pc-modal").addEventListener("click", (e) => {
+    if (e.target === $("pc-modal")) return closeCard();
+    const p = BYID.get(state.pid), go = e.target.closest("[data-cgo]"), sv = e.target.closest("[data-csave]");
+    if (go) { const [k, ln] = go.dataset.cgo.split("|"); closeCard(); window.PropApp.openPlayer(p.id, k, parseFloat(ln)); }
+    else if (sv) {
+      const [k, ln] = sv.dataset.csave.split("|");
+      Saved.toggleProp({ pid: p.id, name: p.name, pos: p.pos, team: p.team, stat: k, line: parseFloat(ln), side: "over", odds: null, note: "", wk: (DFS && DFS.week) || D.through_week + 1 });
+      const on = Saved.hasProp(p.id, k, parseFloat(ln), "over"); sv.textContent = on ? "★" : "☆"; sv.setAttribute("aria-pressed", String(on));
+    }
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("pc-modal").hidden) closeCard(); });
+  els.phead.addEventListener("click", (e) => { if (e.target.closest("[data-card]")) openCard(BYID.get(state.pid)); });
+
   // Save-this-prop row: side, optional odds, and a star button
   function renderSave() {
     const p = BYID.get(state.pid);
@@ -1062,7 +1112,7 @@ const Saved = (() => {
     const p = BYID.get(state.pid), s = STATS[state.stat], smp = sample(), line = state.line, idx = s.idx;
     renderChips(p);
     renderSave();
-    els.phead.innerHTML = `<h2>${esc(p.name)}</h2><p class="meta">${p.pos} · ${teamPill(p.team)}${smp.length ? ` · ${smp.length} games since ${smp[0][0]}` : ""}</p>`;
+    els.phead.innerHTML = `<h2><button type="button" class="linkbtn" data-card aria-label="Open ${esc(p.name)}'s game log and card">${esc(p.name)}</button> <span class="sub" style="display:inline;font-weight:400">tap for game log</span></h2><p class="meta">${p.pos} · ${teamPill(p.team)}${smp.length ? ` · ${smp.length} games since ${smp[0][0]}` : ""}</p>`;
     if (!smp.length) {
       els.out.hidden = true;
       els.empty.hidden = false;
@@ -1423,7 +1473,7 @@ const Saved = (() => {
   const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
   const weeks = [...new Set(D.sched.filter((r) => r[0] === SEASON && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b);
   const nextWeek = weeks.find((w) => D.sched.filter((r) => r[0] === SEASON && r[1] === w).every((r) => r[5] === null)) || weeks[weeks.length - 1];
-  const S = { mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", legs: [], odds: {}, ov: {}, msg: "" };
+  const S = { lf: "all", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", legs: [], odds: {}, ov: {}, msg: "" };
   const gameOf = (team, week) => D.sched.find((r) => r[0] === SEASON && r[1] === week && (r[3] === team || r[4] === team));
   const key = (team, week) => team + "|" + week;
   function sideLine(r, team) { return r[6] === null ? null : r[4] === team ? -r[6] : r[6]; }
@@ -1465,8 +1515,15 @@ const Saved = (() => {
   const pickObj = (g, type, team) => ({ season: SEASON, week: g[1], away: g[3], home: g[4], date: g[2], type, team: team || "", line: type === "spread" ? sideLine(g, team) : g[7] });
   function renderLines() {
     $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " (upcoming)" : w < nextWeek ? " (played)" : ""}</option>`).join("");
-    const games = D.sched.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => (String(a[2]) + (a[10] || "")).localeCompare(String(b[2]) + (b[10] || "")));
-    $("l-head").textContent = games.length ? `Week ${S.week} · ${games.length} games · times are Eastern` : "No lines yet for this week. Pick another week.";
+    const allG = D.sched.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => (String(a[2]) + (a[10] || "")).localeCompare(String(b[2]) + (b[10] || "")));
+    const tr = {};
+    const trend = (t) => tr[t] || (tr[t] = tally(teamRows(t).filter((x) => x.done).slice(-10)));
+    const ovr = (t) => { const x = trend(t); return x.o + x.u ? x.o / (x.o + x.u) : 0.5; };
+    const FILTERS = [["all", "All games", () => true], ["over", "Overs hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 >= 0.6], ["under", "Unders hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 <= 0.4], ["ats", "Teams covering", (g) => [g[3], g[4]].some((t) => { const x = trend(t); return x.n >= 5 && x.c / (x.n - x.cp || 1) >= 0.7; })]];
+    $("l-filter").innerHTML = FILTERS.map(([k, l, f]) => `<button type="button" class="chip" data-lf="${k}" aria-pressed="${S.lf === k}">${l} (${allG.filter(f).length})</button>`).join("");
+    const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
+    $("l-head").textContent = allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : "No lines yet for this week. Pick another week.";
+    const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${t}" aria-label="Open ${t} trends">${teamPill(t)}</button>`;
     const cell = (g, team) => {
       const line = sideLine(g, team), st = stat(line, 0), res = g[5] === null ? null : g[4] === team ? g[5] : -g[5], on = picked(g, "spread", team);
@@ -1478,14 +1535,17 @@ const Saved = (() => {
       if (gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini" data-pick="${g[3]}|${g[4]}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
-      html += `<tr><td>${teamBtn(g[3])}<span class="sub">${fin ? g[8] + " final" : "implied " + ai}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td>${teamBtn(g[4])}<span class="sub">${fin ? g[9] + " final" : "implied " + hi}</span></td>` +
-        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}</td></tr>`;
+      html += `<tr><td>${teamBtn(g[3])}<span class="sub">${fin ? g[8] + " final" : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td>${teamBtn(g[4])}<span class="sub">${fin ? g[9] + " final" : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
+        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}<span class="ou h2h"><button type="button" class="mini" data-h2h="${g[3]}|${g[4]}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
-    $("l-table").innerHTML = html + "</tbody>";
+    $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
   }
+  $("l-filter").addEventListener("click", (e) => { const b = e.target.closest("button[data-lf]"); if (b) { S.lf = b.dataset.lf; renderLines(); } });
   $("l-table").addEventListener("click", (e) => {
     const t = e.target.closest("[data-team]");
     if (t) { openTeam(t.dataset.team); return; }
+    const h = e.target.closest("[data-h2h]");
+    if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); return; }
     const b = e.target.closest("[data-pick]");
     if (!b) return;
     const [away, home, type, team] = b.dataset.pick.split("|");
@@ -1526,7 +1586,7 @@ const Saved = (() => {
       ["Home", done.filter((x) => x.home)], ["Away", done.filter((x) => !x.home)], ["As favorite", done.filter((x) => x.line < 0)], ["As underdog", done.filter((x) => x.line > 0)]];
     const nx = all.find((x) => !x.done && x.season === SEASON);
     $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${teamPill(team)} · against the spread and the total since 2023 · pushes counted separately</p>` +
-      (nx ? `<p class="notes" style="margin:6px 0">Next: ${nx.home ? "vs" : "at"} ${esc(nx.opp)}, week ${nx.week}, spread ${spr(nx.line)}, total ${nx.total}.</p>` : "") +
+      (nx ? `<p class="notes" style="margin:6px 0">Next: ${nx.home ? "vs" : "at"} ${esc(nx.opp)}, week ${nx.week}, spread ${spr(nx.line)}, total ${nx.total}. <button type="button" class="mini" data-h2h="${team}|${nx.opp}">Head to head vs ${esc(nx.opp)}</button></p>` : "") +
       `<div class="tablewrap"><table><thead><tr><th>Window</th><th class="num">Games</th><th class="num">Spread (W-L)</th><th class="num">Total (O-U)</th><th class="num fl">Pts for</th><th class="num fl">Pts against</th><th class="num fl">Avg total</th></tr></thead><tbody>` +
       ws.map(([l, r]) => { const t = win(r); return `<tr><td>${l}</td><td class="num">${t.n}</td><td class="num">${rec(t)}</td><td class="num">${ou(t)}</td><td class="num fl">${f1(t.pf)}</td><td class="num fl">${f1(t.pa)}</td><td class="num fl">${f1(t.tt)}</td></tr>`; }).join("") + `</tbody></table></div>` +
       `<h3 style="margin:14px 0 4px;font-size:14px">Last 10 games</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Game</th><th class="num">Spread</th><th class="num">Score</th><th>Spread result</th><th class="num">Total</th><th>Total result</th></tr></thead><tbody>` +
@@ -1537,6 +1597,34 @@ const Saved = (() => {
     $("tm-modal").hidden = false;
     $("tm-modal").querySelector(".modal-card").focus();
   }
+  // head to head: every regular-season meeting since 2015
+  function openH2H(a, b) {
+    const rows = D.sched.filter((r) => r[5] !== null && r[6] !== null && r[7] !== null && ((r[3] === a && r[4] === b) || (r[3] === b && r[4] === a))).sort((x, y) => (y[0] - x[0]) || (y[1] - x[1]));
+    const cov = { [a]: 0, [b]: 0, push: 0 }, su = { [a]: 0, [b]: 0 };
+    let o = 0, u = 0, op = 0, tt = 0;
+    for (const r of rows) {
+      const ha = r[4] === a, marginA = ha ? r[5] : -r[5], lineA = ha ? -r[6] : r[6], x = marginA + lineA;
+      if (x > 0) cov[a]++; else if (x < 0) cov[b]++; else cov.push++;
+      if (marginA > 0) su[a]++; else if (marginA < 0) su[b]++;
+      const t = r[8] + r[9] - r[7]; if (t > 0) o++; else if (t < 0) u++; else op++;
+      tt += r[8] + r[9];
+    }
+    const n = rows.length, nm = (t) => TEAM_NAMES[t] || t;
+    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(nm(a))} and ${esc(nm(b))}</h2><p class="meta">${teamPill(a)} ${teamPill(b)} · every regular-season meeting since 2015 (${n})</p>` +
+      (n ? `<div class="stats"><div class="stat"><span class="k">${a} vs spread</span><span class="v">${cov[a]}-${cov[b]}${cov.push ? "-" + cov.push : ""}</span><span class="n">${b} covered ${cov[b]}</span></div>` +
+        `<div class="stat"><span class="k">Straight up</span><span class="v">${su[a]}-${su[b]}</span><span class="n">${a} - ${b} wins</span></div>` +
+        `<div class="stat"><span class="k">Over / under</span><span class="v">${o}-${u}${op ? "-" + op : ""}</span><span class="n">overs - unders</span></div>` +
+        `<div class="stat"><span class="k">Avg total</span><span class="v">${(tt / n).toFixed(1)}</span><span class="n">points scored</span></div></div>` +
+        `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Game</th><th class="num">Home spread</th><th class="num">Score</th><th>Covered</th><th class="num">Total</th><th>Total</th></tr></thead><tbody>` +
+        rows.map((r) => {
+          const ha = r[4] === a, marginA = ha ? r[5] : -r[5], lineA = ha ? -r[6] : r[6], x = marginA + lineA, t = r[8] + r[9] - r[7];
+          return `<tr><td>${r[0]} W${r[1]}<span class="sub">${esc(r[3])} at ${esc(r[4])}</span></td><td class="num">${spr(-r[6])}</td><td class="num">${r[8]}-${r[9]}</td><td>${x > 0 ? esc(a) : x < 0 ? esc(b) : "Push"}</td><td class="num">${r[7]}</td><td>${t > 0 ? "Over" : t < 0 ? "Under" : "Push"}</td></tr>`;
+        }).join("") + `</tbody></table></div>` : `<p class="notes">These teams haven't met in the regular season since 2015.</p>`) +
+      `<p class="notes" style="margin-top:8px">Rosters and coaches change, so older meetings count for less. The spread covered column uses the line from the data file for that game.</p>`;
+    $("tm-modal").hidden = false;
+    $("tm-modal").querySelector(".modal-card").focus();
+  }
+  $("tm-body").addEventListener("click", (e) => { const h = e.target.closest("[data-h2h]"); if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); } });
   const closeTeam = () => { $("tm-modal").hidden = true; };
   $("tm-close").addEventListener("click", closeTeam);
   $("tm-modal").addEventListener("click", (e) => { if (e.target === $("tm-modal")) closeTeam(); });
