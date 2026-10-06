@@ -1667,7 +1667,7 @@ const Saved = (() => {
   const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
   const wkInfo = (sch, season) => { const w = [...new Set(sch.filter((r) => r[0] === season && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b); return { w, n: w.find((x) => sch.filter((r) => r[0] === season && r[1] === x).every((r) => r[5] === null)) || w[w.length - 1] }; };
   let { w: weeks, n: nextWeek } = wkInfo(SCH, SEASON);
-  const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", dir: 1, ls: "time", ld: 1, legs: [], odds: {}, ov: {}, msg: "" };
+  const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", dir: 1, win: "all", ls: "time", ld: 1, legs: [], odds: {}, ov: {}, msg: "" };
   const STORE = {};
   const NOTE_L = $("l-notes").textContent, NOTE_Z = $("z-notes").textContent;
   function setLeague(lg) {
@@ -1804,6 +1804,11 @@ const Saved = (() => {
     const dogOK = (g) => (S.df === "any" ? true : S.df === "hd" ? g[6] < 0 : g[6] > 0) && (BANDS.find((x) => x[0] === S.db) || BANDS[0])[2](Math.abs(g[6]));
     const dogBase = allG;
     allG = allG.filter(dogOK);
+    const WINS = isC() ? [["noon", "Noon window", "Noon"], ["aft", "Afternoon window", "Afternoon"], ["night", "Night window", "Night"]] : [["early", "Early slate", "Early|Morning"], ["late", "Late slate", "Late"], ["prime", "Prime time", "Night"]];
+    const inWin = (g, w) => (w[2].split("|")).includes(window_(g[2], g[10]));
+    if (!WINS.some((w) => w[0] === S.win)) S.win = "all";
+    const winBase = allG;
+    if (S.win !== "all") allG = allG.filter((g) => inWin(g, WINS.find((w) => w[0] === S.win)));
     const sideSel = `<label class="lf"><span class="lbl">Side</span><select id="l-sd" aria-label="Favorites and underdogs">${[["any", "Any side"], ["hd", "Home dogs"], ["rd", "Road dogs"]].map(([k, l]) => `<option value="${k}" ${S.df === k ? "selected" : ""}>${l}${k === "any" ? "" : ` (${dogBase.filter((g) => (k === "hd" ? g[6] < 0 : g[6] > 0)).length})`}</option>`).join("")}</select></label>` +
       `<label class="lf"><span class="lbl">Spread size</span><select id="l-db" aria-label="Size of the spread">${BANDS.map(([k, l]) => `<option value="${k}" ${S.db === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>`;
     const tr = {};
@@ -1817,9 +1822,10 @@ const Saved = (() => {
     const lsKey = { total: (g) => g[7] || 0, tt: (g) => hiTT(g) || 0, spread: (g) => g[6] || 0 }[S.ls];
     if (lsKey) games.sort((a, b) => (lsKey(b) - lsKey(a)) * S.ld);
     const lsArrow = (k) => (S.ls === k ? (S.ld > 0 ? " ↓" : " ↑") : "");
+    const winSel = `<label class="lf"><span class="lbl">Window</span><select id="l-wn" aria-label="Kickoff window"><option value="all" ${S.win === "all" ? "selected" : ""}>All windows</option>${WINS.map((w) => `<option value="${w[0]}" ${S.win === w[0] ? "selected" : ""}>${w[1]} (${winBase.filter((g) => inWin(g, w)).length})</option>`).join("")}</select></label>`;
     const sortSel = `<label class="lf${S.ls === "time" ? "" : " wide"}"><span class="lbl">Sort by</span><div class="lsrow"><select id="l-ls" aria-label="Sort games">${LSORT.map(([k, l]) => `<option value="${k}" ${S.ls === k ? "selected" : ""}>${l}</option>`).join("")}</select>` +
       (S.ls === "time" ? "" : `<button type="button" class="chip" data-lsdir="1" title="Flip the order">${S.ld > 0 ? (S.ls === "spread" ? "+ to − ↓" : "High ↓") : (S.ls === "spread" ? "− to + ↑" : "Low ↑")}</button>`) + `</div></label>`;
-    $("l-dyn").innerHTML = gamesSel + sideSel + showSel + sortSel;
+    $("l-dyn").innerHTML = gamesSel + sideSel + showSel + winSel + sortSel;
     $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>${recOf(t).n ? `<span class="rec" title="${isC() ? "Overall record (conference record)" : "Record this season"}">${recOf(t).txt}${isC() ? ` (${recOf(t).conf})` : ""}</span>` : ""}`;
@@ -1843,7 +1849,7 @@ const Saved = (() => {
   $("l-table").addEventListener("click", lsClick);
   $("l-dyn").addEventListener("change", (e) => {
     const id = e.target.id, v = e.target.value;
-    if (id === "l-gm") S.cf = v; else if (id === "l-sd") S.df = v; else if (id === "l-db") S.db = v; else if (id === "l-lf") S.lf = v;
+    if (id === "l-gm") S.cf = v; else if (id === "l-sd") S.df = v; else if (id === "l-db") S.db = v; else if (id === "l-lf") S.lf = v; else if (id === "l-wn") S.win = v;
     else if (id === "l-ls") { S.ls = v; S.ld = 1; } else return;
     renderLines();
   });
