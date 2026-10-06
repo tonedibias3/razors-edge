@@ -439,4 +439,30 @@ function teamRecent(TG, team, pts, n) {
 function oddsProfit(o) { return o > 0 ? o / 100 : 100 / Math.abs(o); }
 function teaserBreakEven(odds, legs) { return legs > 0 ? Math.pow(1 / (1 + oddsProfit(odds)), 1 / legs) : null; }
 
-if (typeof module !== "undefined") module.exports = { STATS, POS_STATS, getSample, median, summarize, defaultLine, leagueLine, DEF_TOP, defFamily, defSample, byDefense, roleTop, breakEven, matchupEstimate, rankEntries, parseLines, TEAM_NAMES, parseCSV, parseDK, matchPool, optimizeLineup, dkNorm, dkTeam, TEAM_COLORS, teamPill, teamGames, teaseResult, keysCrossed, legStats, teamRecent, oddsProfit, teaserBreakEven, KEY_MARGINS };
+// ---- Saved props / parlay math ----
+// Accepts "-115", "−115", "+120", "120"; returns an integer American price or null.
+function parseAmerican(v) {
+  if (v === null || v === undefined) return null;
+  const n = parseInt(String(v).replace(/[−–—]/g, "-").replace(/[^0-9+-]/g, ""), 10);
+  return Number.isFinite(n) && Math.abs(n) >= 100 ? n : null;
+}
+const americanToDecimal = (o) => (o > 0 ? 1 + o / 100 : 1 + 100 / Math.abs(o));
+function decimalToAmerican(d) {
+  if (!(d > 1)) return null;
+  return d >= 2 ? Math.round((d - 1) * 100) : -Math.round(100 / (d - 1));
+}
+// legs: [{odds: American|null, p: hit rate 0-1|null}]. Legs without odds are skipped and counted.
+function parlayCombine(legs, stake) {
+  const priced = legs.filter((l) => l.odds !== null && l.odds !== undefined);
+  const dec = priced.reduce((a, l) => a * americanToDecimal(l.odds), 1);
+  const ps = legs.filter((l) => l.p !== null && l.p !== undefined);
+  return {
+    n: legs.length, priced: priced.length, dec: priced.length ? dec : null,
+    american: priced.length ? decimalToAmerican(dec) : null,
+    implied: priced.length ? 1 / dec : null,
+    payout: priced.length ? stake * dec : null, profit: priced.length ? stake * (dec - 1) : null,
+    hist: ps.length === legs.length && legs.length ? ps.reduce((a, l) => a * l.p, 1) : null,
+  };
+}
+
+if (typeof module !== "undefined") module.exports = { STATS, POS_STATS, getSample, median, summarize, defaultLine, leagueLine, DEF_TOP, defFamily, defSample, byDefense, roleTop, breakEven, matchupEstimate, rankEntries, parseLines, TEAM_NAMES, parseCSV, parseDK, matchPool, optimizeLineup, dkNorm, dkTeam, TEAM_COLORS, teamPill, teamGames, teaseResult, keysCrossed, legStats, teamRecent, oddsProfit, teaserBreakEven, KEY_MARGINS, parseAmerican, americanToDecimal, decimalToAmerican, parlayCombine };

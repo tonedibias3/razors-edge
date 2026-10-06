@@ -290,6 +290,37 @@ tr.mine td { background: var(--accent-soft); }
 .stat.ok .v, .stat.hi .v { color: var(--accent); }
 .stat.neg { border-color: var(--bad); }
 .stat.neg .v { color: var(--bad); }
+
+/* Saved drawer */
+.top .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#sv-btn { height: 36px; font-size: 13px; white-space: nowrap; }
+.psave { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+.psave .proj-in { width: 92px; }
+.nm { min-width: 0; flex: 1 1 160px; max-width: 280px; height: 36px; font-size: 14px; }
+.drawer-back { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.55); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 100%); z-index: 61; background: var(--surface); color: var(--ink); border-left: 1px solid var(--axis); display: flex; flex-direction: column; outline: none; }
+.dr-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 2px solid var(--accent); }
+.dr-head h2 { margin: 0; font-size: 20px; }
+.dr-tabs { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 16px 0; }
+.dr-body { overflow-y: auto; padding: 12px 16px 20px; flex: 1; }
+.svc { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+.svc.sel { border-color: var(--accent); background: var(--accent-soft); }
+.svrow { display: flex; gap: 10px; align-items: flex-start; }
+.svrow > .svmain { flex: 1; min-width: 0; }
+.svrow input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; }
+.svedit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.svedit .proj-in { width: 84px; }
+.svname { width: 100%; font: 600 16px var(--font-body); height: 34px; margin-bottom: 2px; }
+.svc details summary { cursor: pointer; font-size: 14px; margin-top: 6px; }
+.svc table { font-size: 14px; margin-top: 6px; }
+.svc .res { display: inline-block; }
+.svlegs { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.svlegs li { padding: 3px 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.parlay { border: 2px solid var(--accent); border-radius: 12px; padding: 12px; margin: 4px 0 14px; }
+.parlay .stats { margin: 8px 0; }
+.dr-foot { margin-top: 18px; }
+.dr-foot textarea { width: 100%; font: 12px/1.3 monospace; }
+@media (max-width: 520px) { .top { flex-wrap: wrap; } .top .btns { justify-content: flex-start; } }
 </style>
 
 <main class="wrap">
@@ -298,7 +329,10 @@ tr.mine td { background: var(--accent-soft); }
     <h1>Razor's <span>Edge</span></h1>
     <p class="src" id="src"></p>
     </div>
-    <button type="button" class="chip" id="theme-btn" aria-label="Switch between dark and light mode"></button>
+    <div class="btns">
+      <button type="button" class="chip" id="sv-btn" aria-haspopup="dialog">★ Saved</button>
+      <button type="button" class="chip" id="theme-btn" aria-label="Switch between dark and light mode"></button>
+    </div>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Views">
@@ -335,6 +369,7 @@ tr.mine td { background: var(--accent-soft); }
   <p class="hint">The line starts at the player's median over his last 10 games. Replace it with the number from your sportsbook.</p>
 
   <div class="phead" id="phead"></div>
+  <div class="psave" id="psave"></div>
   <p class="empty" id="empty" hidden></p>
 
   <div id="out" style="display:contents">
@@ -502,7 +537,7 @@ tr.mine td { background: var(--accent-soft); }
       <div class="panel-head"><h2>Your teaser</h2></div>
       <div class="stats" id="z-sum"></div>
       <div id="z-legs"></div>
-      <div class="chips" style="margin-top:12px"><button type="button" class="chip" id="z-clear">Clear slip</button></div>
+      <div class="chips" style="margin-top:12px"><input class="nm" id="z-name" type="text" placeholder="Name this teaser (optional)" aria-label="Teaser name" maxlength="60"><button type="button" class="chip primary" id="z-save" disabled>Save teaser</button><button type="button" class="chip" id="z-clear">Clear slip</button></div>
       <p class="notes" id="z-msg" style="margin-top:8px"></p>
       <div id="z-cmp"></div>
     </section>
@@ -563,6 +598,10 @@ tr.mine td { background: var(--accent-soft); }
         <button type="button" class="chip" id="p-clear">Clear lineup</button>
         <button type="button" class="chip" id="p-unlock" hidden>Unlock all</button>
       </div>
+      <div class="chips" style="margin-top:10px">
+        <input class="nm" id="p-name" type="text" placeholder="Name this lineup (optional)" aria-label="Lineup name" maxlength="60">
+        <button type="button" class="chip" id="p-save" disabled>Save lineup</button>
+      </div>
       <p class="notes" id="p-msg" style="margin-top:8px"></p>
     </section>
 
@@ -581,6 +620,12 @@ tr.mine td { background: var(--accent-soft); }
   </div>
 </div>
 <div class="tip" id="tip" hidden></div>
+<div class="drawer-back" id="sv-back" hidden></div>
+<aside class="drawer" id="sv" role="dialog" aria-modal="true" aria-labelledby="sv-title" tabindex="-1" hidden>
+  <div class="dr-head"><h2 id="sv-title">Saved</h2><button type="button" class="mini" id="sv-close" aria-label="Close saved">✕</button></div>
+  <div class="dr-tabs" id="sv-tabs" role="group" aria-label="Saved items"></div>
+  <div class="dr-body" id="sv-body"></div>
+</aside>
 
 <script>
 /*__CORE__*/
@@ -590,12 +635,52 @@ const DKDEFAULT = /*__DKDEFAULT__*/;
 // Shade a table cell blue when v>0 (over) or orange when v<0 (under); v runs from -1 to 1.
 const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:color-mix(in srgb, var(${v > 0 ? "--over" : "--under"}) ${Math.min(42, Math.round(Math.abs(v) * 42))}%, transparent)"`);
 
+// ---------- Saved items (props, lineups, teasers): kept in this browser's localStorage ----------
+const RE = {};
+const Saved = (() => {
+  const KEY = "re-saved-v1";
+  const d = { props: [], lineups: [], teasers: [] };
+  let ok = true;
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) for (const k of Object.keys(d)) if (Array.isArray(r[k])) d[k] = r[k]; } catch (e) { ok = false; }
+  const subs = [];
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  function commit() { try { localStorage.setItem(KEY, JSON.stringify(d)); ok = true; } catch (e) { ok = false; } subs.forEach((f) => f()); }
+  const pk = (x) => [x.pid, x.stat, x.line, x.side].join("|");
+  return {
+    data: d, on: (f) => subs.push(f), uid, commit,
+    get persisted() { return ok; },
+    count: () => d.props.length + d.lineups.length + d.teasers.length,
+    hasProp: (pid, stat, line, side) => d.props.some((x) => pk(x) === [pid, stat, line, side].join("|")),
+    toggleProp(p) {
+      const i = d.props.findIndex((x) => pk(x) === pk(p));
+      if (i >= 0) d.props.splice(i, 1); else d.props.unshift({ id: uid(), at: Date.now(), ...p });
+      commit();
+      return i < 0;
+    },
+    add(kind, item) { d[kind].unshift({ id: uid(), at: Date.now(), ...item }); commit(); },
+    remove(kind, id) { const i = d[kind].findIndex((x) => x.id === id); if (i >= 0) { d[kind].splice(i, 1); commit(); } },
+    update(kind, id, patch) { const x = d[kind].find((y) => y.id === id); if (x) { Object.assign(x, patch); commit(); } },
+    clear(kind) { d[kind].length = 0; commit(); },
+    exportJSON: () => JSON.stringify({ app: "razors-edge", v: 1, props: d.props, lineups: d.lineups, teasers: d.teasers }, null, 1),
+    importJSON(text) {
+      let r;
+      try { r = JSON.parse(text); } catch (e) { return { error: "That isn't a backup file. Paste the whole text, starting with {." }; }
+      if (!r || r.app !== "razors-edge") return { error: "That doesn't look like a Razor's Edge backup." };
+      let added = 0;
+      for (const k of Object.keys(d)) for (const x of Array.isArray(r[k]) ? r[k] : []) if (x && x.id && !d[k].some((y) => y.id === x.id)) { d[k].push(x); added++; }
+      for (const k of Object.keys(d)) d[k].sort((a, b) => (b.at || 0) - (a.at || 0));
+      commit();
+      return { added };
+    },
+  };
+})();
+
 (function () {
   const D = DATA;
   const $ = (id) => document.getElementById(id);
   const els = {
     q: $("q"), results: $("results"), stats: $("stats"), line: $("line"), reg: $("reg"),
-    phead: $("phead"), empty: $("empty"), out: $("out"), tilesHead: $("tiles-head"), tiles: $("tiles"),
+    phead: $("phead"), psave: $("psave"), empty: $("empty"), out: $("out"), tilesHead: $("tiles-head"), tiles: $("tiles"),
     legend: $("legend"), chart: $("chart"), chartwrap: $("chartwrap"), win: $("win"),
     log: $("log"), logSum: $("log-sum"), tip: $("tip"),
     muOpp: $("mu-opp"), muTop: $("mu-top"), muRange: $("mu-range"), muOdds: $("mu-odds"), muSched: $("mu-sched"),
@@ -621,7 +706,7 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
   const wkLong = (g) => (g[2] ? POST_LONG[g[1]] || "Playoffs" : "Week " + g[1]);
   const vsAt = (g) => (g[5] ? "vs" : "@");
 
-  const state = { pid: null, stat: "rec_yds", line: 0.5, reg: false };
+  const state = { pid: null, stat: "rec_yds", line: 0.5, reg: false, side: "over", odds: "" };
 
   // matchup state: opponent, how many players of his position to compare with, defense seasons, optional odds
   const nm = (t) => TEAM_NAMES[t] || t;
@@ -920,9 +1005,33 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
     return `<tr><td>${esc(label)}</td><td class="num">${r.n}${flag}</td><td class="num">${r.n ? `${r.over} (${pct(r.over, r.n)})` : "–"}</td><td class="num">${r.n ? `${r.under} (${pct(r.under, r.n)})` : "–"}</td><td class="num">${r.push}</td><td class="num">${fmt(r.avg)}</td><td class="num">${fmt(r.median)}</td></tr>`;
   }
 
+  // Save-this-prop row: side, optional odds, and a star button
+  function renderSave() {
+    const p = BYID.get(state.pid);
+    if (!p) return;
+    const td = state.stat === "any_td", side = td ? "over" : state.side;
+    const on = Saved.hasProp(p.id, state.stat, state.line, side);
+    els.psave.innerHTML =
+      (td ? "" : ["over", "under"].map((k) => `<button type="button" class="chip" data-side="${k}" aria-pressed="${side === k}">${k === "over" ? "Over" : "Under"}</button>`).join("")) +
+      `<input class="proj-in" type="text" inputmode="numeric" data-psodds placeholder="Odds −115" value="${esc(state.odds)}" aria-label="Odds, optional">` +
+      `<button type="button" class="chip ${on ? "" : "primary"}" data-psave aria-pressed="${on}">${on ? "★ Saved. Tap to remove" : "☆ Save this prop"}</button>` +
+      `<span class="sub" style="margin:0">${esc(td ? "Anytime TD" : side + " " + state.line + " " + STATS[state.stat].label.toLowerCase())}</span>`;
+  }
+  els.psave.addEventListener("click", (e) => {
+    const sd = e.target.closest("button[data-side]");
+    if (sd) { state.side = sd.dataset.side; renderSave(); return; }
+    if (e.target.closest("button[data-psave]")) {
+      const p = BYID.get(state.pid), td = state.stat === "any_td";
+      Saved.toggleProp({ pid: p.id, name: p.name, pos: p.pos, team: p.team, stat: state.stat, line: state.line, side: td ? "over" : state.side, odds: parseAmerican(state.odds), note: "", wk: (DFS && DFS.week) || D.through_week + 1 });
+    }
+  });
+  els.psave.addEventListener("input", (e) => { if (e.target.matches("[data-psodds]")) state.odds = e.target.value; });
+  Saved.on(renderSave);
+
   function render() {
     const p = BYID.get(state.pid), s = STATS[state.stat], smp = sample(), line = state.line, idx = s.idx;
     renderChips(p);
+    renderSave();
     els.phead.innerHTML = `<h2>${esc(p.name)}</h2><p class="meta">${p.pos} · ${teamPill(p.team)}${smp.length ? ` · ${smp.length} games since ${smp[0][0]}` : ""}</p>`;
     if (!smp.length) {
       els.out.hidden = true;
@@ -971,8 +1080,10 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
   }
   // lets the Top hit rates tab open a player on this page
   window.PropApp = {
-    openPlayer(id, stat, line) {
+    openPlayer(id, stat, line, side, odds) {
       state.stat = stat;
+      state.side = side || "over";
+      state.odds = odds ? String(odds) : "";
       setPlayer(id);
       if (state.stat === stat) { state.line = line; els.line.value = line; render(); }
     },
@@ -1205,7 +1316,7 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
       `<thead><tr><th class="num">#</th><th>Player</th><th class="num">Line</th><th class="num">${sortBtn("hit", "Hit rate")}</th><th class="num">Last 5</th><th class="num">${sortBtn("avg", "Avg")}</th><th>Next game</th><th class="num">Opp allows</th><th class="num">${sortBtn("est", "Estimate")}</th></tr></thead><tbody>` +
       shown.map((r, i) =>
         `<tr><td class="num">${i + 1}</td>` +
-        `<td><button type="button" class="linkbtn" data-pid="${r.id}" data-line="${r.line}">${esc(r.name)}</button><span class="sub">${r.pos} · ${teamPill(r.team)}</span></td>` +
+        `<td><button type="button" class="star" data-pstar="${r.id}|${r.line}" aria-pressed="${Saved.hasProp(r.id, T.stat, r.line, "over")}" aria-label="Save ${esc(r.name)} over ${r.line} as a prop" title="Save as a prop">${Saved.hasProp(r.id, T.stat, r.line, "over") ? "★" : "☆"}</button><button type="button" class="linkbtn" data-pid="${r.id}" data-line="${r.line}">${esc(r.name)}</button><span class="sub">${r.pos} · ${teamPill(r.team)}</span></td>` +
         `<td class="num">${r.line}</td>` +
         `<td class="num"${tint((r.hit - 0.5) * 2)}>${r.over} of ${r.n} · <strong>${Math.round(r.hit * 100)}%</strong></td>` +
         `<td class="num">${r.over5} of ${r.n5}</td>` +
@@ -1245,6 +1356,12 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
   el.table.addEventListener("click", (e) => {
     const sb = e.target.closest("button[data-sort]");
     if (sb) { T.sort = sb.dataset.sort; render(); return; }
+    const st = e.target.closest("button[data-pstar]");
+    if (st) {
+      const [id, ln] = st.dataset.pstar.split("|"), p = PLAYERS.find((x) => x.id === id);
+      if (p) Saved.toggleProp({ pid: p.id, name: p.name, pos: p.pos, team: p.team, stat: T.stat, line: parseFloat(ln), side: "over", odds: null, note: "", wk: (DFS && DFS.week) || D.through_week + 1 });
+      return;
+    }
     const pb = e.target.closest("button[data-pid]");
     if (pb && window.PropApp) {
       window.PropApp.openPlayer(pb.dataset.pid, T.stat, parseFloat(pb.dataset.line));
@@ -1253,6 +1370,12 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
     }
   });
 
+  Saved.on(() => {
+    for (const b of el.table.querySelectorAll("button[data-pstar]")) {
+      const [id, ln] = b.dataset.pstar.split("|"), on = Saved.hasProp(id, T.stat, parseFloat(ln), "over");
+      b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★" : "☆";
+    }
+  });
   el.line.value = T.line;
   render();
 })();
@@ -1346,6 +1469,7 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
       (playedAll ? `<p class="${miss ? "warn" : "notes"}" style="margin-top:8px">${miss ? `This slip lost: ${miss} leg${miss > 1 ? "s" : ""} missed.` : pushed ? `No leg missed, but ${pushed} pushed (the book would shrink the teaser).` : "Every leg covered: this slip won."}</p>` : "")
       : `<p class="notes">No legs yet. Press + Add on a team below.</p>`;
     $("z-msg").textContent = S.msg || "";
+    $("z-save").disabled = n < 2;
     // compare 6 / 6.5 / 7
     $("z-cmp").innerHTML = n >= 2 ? `<h3 style="margin:18px 0 6px;font-size:14px">Compare the point options for these ${n} legs</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Points</th><th class="num fl">Avg leg</th><th class="num">All hit</th><th class="num">Odds</th><th class="num">Needs</th><th class="num">Expected</th></tr></thead><tbody>` +
       [6, 6.5, 7].map((p) => {
@@ -1360,6 +1484,23 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
   $("z-week").addEventListener("change", (e) => { S.week = +e.target.value; render(); });
   $("z-stake").addEventListener("change", (e) => { const v = parseFloat(e.target.value); S.stake = Number.isFinite(v) && v > 0 ? v : 25; render(); });
   $("z-clear").addEventListener("click", () => { S.legs = []; S.msg = ""; render(); });
+  $("z-save").addEventListener("click", () => {
+    const n = S.legs.length;
+    if (n < 2) return;
+    const nm = $("z-name").value.trim() || `Week ${S.legs[0].week} · ${n} legs, ${S.pts} pts`;
+    Saved.add("teasers", { name: nm, season: SEASON, pts: S.pts, stake: S.stake, odds: oddsFor(n, S.pts), legs: S.legs.map((l) => ({ team: l.team, opp: l.opp, home: l.home, week: l.week, line: l.line })) });
+    $("z-name").value = "";
+    S.msg = `Saved “${nm}”. Open Saved at the top to see it, and whether it hit once the games are played.`;
+    render();
+  });
+  RE.loadTeaser = (t) => {
+    S.pts = t.pts; S.stake = t.stake || 25; S.legs = []; S.msg = "";
+    for (const l of t.legs) { S.ov[key(l.team, l.week)] = l.line; addLeg(l.team, l.week, l.line); }
+    if (t.odds !== null && t.odds !== undefined) S.odds[Math.max(t.legs.length, 2) + "|" + t.pts] = t.odds;
+    if (weeks.includes(t.legs[0].week)) S.week = t.legs[0].week;
+    S.msg = `Loaded “${t.name}”.`;
+    render();
+  };
   $("z-table").addEventListener("click", (e) => { const b = e.target.closest("button[data-add]"); if (b) { addLeg(b.dataset.add, S.week, S.ov[key(b.dataset.add, S.week)]); render(); } });
   $("z-table").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value); const k = i.dataset.line; if (Number.isFinite(v)) { S.ov[k] = v; const [t, w] = k.split("|"); S.legs.forEach((l) => { if (l.team === t && l.week === +w) l.line = v; }); } else delete S.ov[k]; render(); });
   $("z-legs").addEventListener("click", (e) => { const b = e.target.closest("button[data-rmleg]"); if (b) { S.legs.splice(+b.dataset.rmleg, 1); S.msg = ""; render(); } });
@@ -1516,6 +1657,7 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
     if (S.detail) renderDetail();
     $("p-lineup").hidden = false;
     for (const id of ["p-fill", "p-best", "p-clear"]) $(id).disabled = !has;
+    $("p-save").disabled = !S.lineup.length;
     $("p-unlock").hidden = !has || !S.locks.size; $("p-unlock").textContent = `Unlock all (${S.locks.size})`;
     el.body.innerHTML = lineupHTML();
     el.msg.textContent = has ? (S.msg || "") : "Load your DraftKings salary file above (or paste it) to turn on the lineup builder. It needs the salaries to stay under the $50,000 cap.";
@@ -1565,6 +1707,27 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
   $("p-fill").addEventListener("click", () => { fill(true); render(); });
   $("p-best").addEventListener("click", () => { fill(false); render(); });
   $("p-clear").addEventListener("click", () => { S.lineup = S.lineup.filter((id) => S.locks.has(id)); S.msg = S.lineup.length ? "Cleared everyone except your locked players." : ""; render(); });
+  $("p-save").addEventListener("click", () => {
+    const { slots } = place(S.lineup), ps = slots.filter((x) => x.p);
+    if (!ps.length) return;
+    const sal = ps.reduce((a, x) => a + x.p.salary, 0), pr = ps.reduce((a, x) => a + (x.p.proj || 0), 0);
+    const nm = $("p-name").value.trim() || `Week ${F.week} lineup`;
+    Saved.add("lineups", { name: nm, week: F.week, salary: sal, proj: Math.round(pr * 10) / 10, full: ps.length === 9, players: ps.map((x) => ({ slot: x.slot, name: x.p.name, pos: x.p.pos, team: x.p.team, salary: x.p.salary, proj: x.p.proj === null ? null : Math.round(x.p.proj * 10) / 10 })) });
+    $("p-name").value = "";
+    S.msg = `Saved “${nm}”. Open Saved at the top to bring it back any time.`;
+    render();
+  });
+  RE.loadLineup = (l) => {
+    const ids = [], miss = [];
+    for (const x of l.players) {
+      const p = P.find((q) => q.name === x.name && q.team === x.team && q.pos === x.pos);
+      if (p) ids.push(p.id); else miss.push(x.name);
+    }
+    S.lineup = ids; S.locks = new Set();
+    const sal = ids.reduce((a, id) => a + BYID.get(id).salary, 0);
+    S.msg = `Loaded “${l.name}”.` + (miss.length ? ` Not on the current salary file, so left out: ${miss.join(", ")}.` : "") + (sal !== l.salary && !miss.length ? ` Salaries have changed: it now costs ${money(sal)}.` : "");
+    render();
+  };
   $("p-unlock").addEventListener("click", () => { S.locks = new Set(); S.msg = ""; render(); });
   const rm = (id) => { S.lineup = S.lineup.filter((x) => x !== id); S.locks.delete(id); S.msg = ""; };
   // Lock a player: he stays through "Start over" and "Clear". Locking someone not in the lineup puts him in (swapping out an unlocked player if no spot is open).
@@ -1697,5 +1860,211 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
     apply();
   });
   apply();
+})();
+
+// ---------- Saved drawer ----------
+(function () {
+  const D = DATA;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const odds = (o) => (o === null || o === undefined ? "" : (o > 0 ? "+" : "−") + Math.abs(o));
+  const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
+  const pct = (v) => (v === null || v === undefined ? "–" : Math.round(v * 100) + "%");
+  const when = (t) => (t ? new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
+  const UP = (DFS && DFS.week) || D.through_week + 1;
+  const V = { open: false, tab: "props", allWeeks: false, sel: new Set(), stake: 10, book: "", confirm: "", note: "", opener: null, bkOpen: false };
+  const btn = $("sv-btn"), box = $("sv"), back = $("sv-back"), body = $("sv-body");
+
+  const propText = (x) => (x.stat === "any_td" ? "Anytime TD" : `${x.side === "under" ? "Under" : "Over"} ${x.line} ${STATS[x.stat].label.toLowerCase()}`);
+  function hit(x) {
+    const g = D.games[x.pid];
+    if (!g) return null;
+    const smp = getSample(g, x.stat, false);
+    if (!smp.length) return null;
+    const idx = STATS[x.stat].idx, k = x.side === "under" ? "under" : "over";
+    const a = summarize(smp.slice(-10), idx, x.line), b = summarize(smp, idx, x.line);
+    return { n10: a.n, h10: a[k], nAll: b.n, hAll: b[k], p: a.n ? a[k] / a.n : null, since: smp[0][0] };
+  }
+
+  function propsHTML() {
+    const all = Saved.data.props, list = all.filter((x) => V.allWeeks || x.wk === UP || x.wk === undefined);
+    const other = all.length - list.length;
+    let h = `<div class="chips" style="margin-bottom:10px"><button type="button" class="chip" data-wk="0" aria-pressed="${!V.allWeeks}">This week (${all.length - other})</button><button type="button" class="chip" data-wk="1" aria-pressed="${V.allWeeks}">All weeks (${all.length})</button></div>`;
+    if (!all.length) return h + `<p class="notes">No saved props yet. On the Players tab, set a line, then press “☆ Save this prop” (add your odds if you like). On Top hit rates, tap the ☆ next to a player.</p>`;
+    if (!list.length) h += `<p class="notes">Nothing saved for week ${UP}. Switch to All weeks to see older ones.</p>`;
+    const hits = new Map(list.map((x) => [x.id, hit(x)]));
+    h += list.map((x) => {
+      const r = hits.get(x.id), sel = V.sel.has(x.id);
+      return `<div class="svc ${sel ? "sel" : ""}"><div class="svrow"><input type="checkbox" data-sel="${x.id}" ${sel ? "checked" : ""} aria-label="Add ${esc(x.name)} to the parlay">` +
+        `<div class="svmain"><button type="button" class="linkbtn" data-open="${x.id}"><strong>${esc(x.name)}</strong></button> <span class="sub" style="display:inline">${x.pos} · ${teamPill(x.team)}${x.wk ? " · wk " + x.wk : ""}</span>` +
+        `<div style="margin-top:2px">${esc(propText(x))}${x.odds ? ` <strong>${odds(x.odds)}</strong>` : ""}</div>` +
+        `<div class="sub" style="margin:2px 0 0">${r ? `Last ${r.n10}: ${r.h10} of ${r.n10} (${pct(r.p)}) · since ${r.since}: ${r.hAll} of ${r.nAll} (${pct(r.nAll ? r.hAll / r.nAll : null)})` : "No game history for this line"}</div></div></div>` +
+        `<div class="svedit">${x.stat === "any_td" ? "" : `<button type="button" class="mini" data-flip="${x.id}">${x.side === "under" ? "Under → Over" : "Over → Under"}</button>`}` +
+        `<input class="proj-in" type="text" inputmode="numeric" data-podds="${x.id}" value="${x.odds ? odds(x.odds) : ""}" placeholder="Odds" aria-label="Odds for ${esc(x.name)}">` +
+        `<input class="proj-in" style="flex:1;min-width:110px;width:auto" type="text" data-pnote="${x.id}" value="${esc(x.note || "")}" placeholder="Note" maxlength="80" aria-label="Note">` +
+        `<button type="button" class="mini" data-del="props|${x.id}" aria-label="Delete ${esc(x.name)} prop">Delete</button></div></div>`;
+    }).join("");
+    const chosen = list.filter((x) => V.sel.has(x.id));
+    h += `<div class="chips" style="margin:2px 0 10px"><button type="button" class="chip" data-selall="1">Select all shown</button>${V.sel.size ? '<button type="button" class="chip" data-selnone="1">Clear selection</button>' : ""}` +
+      `<button type="button" class="chip" data-delall="props">${V.confirm === "props" ? "Tap again to delete all" : "Delete all props"}</button></div>`;
+    if (chosen.length >= 2) {
+      const st = V.stake, ov = parseAmerican(V.book);
+      const c = parlayCombine(chosen.map((x) => ({ odds: x.odds || null, p: (hits.get(x.id) || {}).p === undefined ? null : hits.get(x.id).p })), st);
+      const dec = ov !== null ? americanToDecimal(ov) : c.dec;
+      const am = ov !== null ? ov : c.american, pay = dec ? st * dec : null;
+      const teams = {};
+      chosen.forEach((x) => (teams[x.team] = (teams[x.team] || 0) + 1));
+      const same = Object.entries(teams).filter(([, n]) => n > 1).map(([t]) => t);
+      h += `<div class="parlay"><h3 style="margin:0;font-size:16px">Parlay: ${chosen.length} legs</h3>` +
+        `<div class="svedit"><label>Stake $ <input class="proj-in" type="number" min="1" step="1" inputmode="decimal" data-stake value="${st}" aria-label="Parlay stake"></label>` +
+        `<label>Book's parlay price <input class="proj-in" type="text" inputmode="numeric" data-book value="${esc(V.book)}" placeholder="optional" aria-label="Book parlay odds"></label></div>` +
+        `<div class="stats"><div class="stat hi"><span class="k">Combined odds</span><span class="v">${am === null ? "–" : odds(am)}</span><span class="n">${ov !== null ? "your book's price" : c.priced < chosen.length ? "legs with odds only" : "multiplied"}</span></div>` +
+        `<div class="stat"><span class="k">Pays</span><span class="v">${pay === null ? "–" : money(pay)}</span><span class="n">${pay === null ? "add odds" : "profit " + money(pay - st)}</span></div>` +
+        `<div class="stat"><span class="k">Book says</span><span class="v">${dec ? pct(1 / dec) : "–"}</span><span class="n">chance implied by the price</span></div>` +
+        `<div class="stat"><span class="k">History says</span><span class="v">${c.hist === null ? "–" : pct(c.hist)}</span><span class="n">all legs hit, last 10 games each</span></div></div>` +
+        `<p class="notes" style="margin:0">${c.priced < chosen.length ? `${chosen.length - c.priced} leg${chosen.length - c.priced > 1 ? "s have" : " has"} no odds, so the combined price skips ${chosen.length - c.priced > 1 ? "them" : "it"}. Type odds in each card. ` : ""}` +
+        `${same.length ? `Legs from the same team (${same.join(", ")}) move together, so the true chance isn't the simple product, and the book prices that in. Type its parlay price above for the real payout. ` : ""}` +
+        `History multiplies each leg's last-10 rate as if the legs were independent; treat it as a rough guide, not a forecast.</p></div>`;
+    } else if (list.length >= 2) h += `<p class="notes">Tick two or more props to see them as a parlay.</p>`;
+    return h;
+  }
+
+  function lineupsHTML() {
+    const L = Saved.data.lineups;
+    if (!L.length) return `<p class="notes">No saved lineups yet. On the DFS tab, build a lineup, type a name and press Save lineup.</p>`;
+    return L.map((l) => `<div class="svc"><input class="svname" type="text" data-name="lineups|${l.id}" value="${esc(l.name)}" maxlength="60" aria-label="Lineup name">` +
+      `<div class="sub" style="margin:0">Week ${l.week} · ${l.players.length} players${l.full ? "" : " (not full)"} · $${l.salary.toLocaleString("en-US")} · ${l.proj} projected · saved ${when(l.at)}</div>` +
+      `<details><summary>Show players</summary><div class="tablewrap" style="margin-top:0"><table><tbody>` +
+      l.players.map((p) => `<tr><td>${esc(p.slot)}</td><td>${esc(p.name)} <span class="sub" style="display:inline">${teamPill(p.team)}</span></td><td class="num">$${p.salary.toLocaleString("en-US")}</td><td class="num">${p.proj === null ? "–" : p.proj}</td></tr>`).join("") +
+      `</tbody></table></div></details>` +
+      `<div class="svedit"><button type="button" class="chip primary" data-loadl="${l.id}" ${RE.loadLineup ? "" : "disabled"}>Load into DFS</button><button type="button" class="mini" data-del="lineups|${l.id}">Delete</button></div></div>`).join("");
+  }
+
+  function legResult(t, l) {
+    const g = D.sched.find((r) => r[0] === (t.season || D.season) && r[1] === l.week && (r[3] === l.team || r[4] === l.team));
+    if (!g || g[5] === null) return null;
+    return teaseResult(g[4] === l.team ? g[5] : -g[5], l.line, t.pts);
+  }
+  function teaserStatus(t) {
+    const rs = t.legs.map((l) => legResult(t, l)), done = rs.filter((x) => x !== null);
+    if (rs.some((x) => x !== null && x < 0)) return { cls: "no", text: "Lost. " + rs.filter((x) => x !== null && x < 0).length + " leg" + (rs.filter((x) => x !== null && x < 0).length > 1 ? "s" : "") + " missed.", rs };
+    if (done.length === rs.length) {
+      const push = rs.filter((x) => x === 0).length;
+      if (push) return { cls: "", text: `No leg missed, but ${push} pushed (the book would shrink it).`, rs };
+      return { cls: "ok", text: "Won" + (t.odds ? ` ${money(t.stake * oddsProfit(t.odds))} on $${t.stake}` : "") + ".", rs };
+    }
+    return { cls: "", text: done.length ? `${done.length} of ${rs.length} played, none missed yet.` : "Not played yet.", rs };
+  }
+  function teasersHTML() {
+    const T = Saved.data.teasers;
+    if (!T.length) return `<p class="notes">No saved teasers yet. On the Teasers tab, build a slip with 2 or more legs, type a name and press Save teaser.</p>`;
+    return T.map((t) => {
+      const st = teaserStatus(t);
+      return `<div class="svc"><input class="svname" type="text" data-name="teasers|${t.id}" value="${esc(t.name)}" maxlength="60" aria-label="Teaser name">` +
+        `<div class="sub" style="margin:0">${t.legs.length} legs · ${t.pts} pts · $${t.stake}${t.odds ? " at " + odds(t.odds) : ""} · saved ${when(t.at)}</div>` +
+        `<p style="margin:6px 0 0"><span class="res ${st.cls}">${esc(st.text)}</span></p>` +
+        `<ul class="svlegs">` + t.legs.map((l, i) => {
+          const x = st.rs[i];
+          return `<li>${teamPill(l.team)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · wk ${l.week}</span> <span>${l.line > 0 ? "+" : ""}${l.line} → <strong>${l.line + t.pts > 0 ? "+" : ""}${Math.round((l.line + t.pts) * 10) / 10}</strong></span>` +
+            (x === null ? ` <span class="sub" style="margin:0">pending</span>` : x > 0 ? ` <span class="res ok">Covered by ${Math.round(x * 10) / 10}</span>` : x === 0 ? ` <span class="res">Push</span>` : ` <span class="res no">Missed by ${Math.round(-x * 10) / 10}</span>`) + `</li>`;
+        }).join("") + `</ul>` +
+        `<div class="svedit"><button type="button" class="chip primary" data-loadt="${t.id}" ${RE.loadTeaser && (t.season || D.season) === D.season ? "" : "disabled"}>Load into Teasers</button><button type="button" class="mini" data-del="teasers|${t.id}">Delete</button></div></div>`;
+    }).join("");
+  }
+
+  function footHTML() {
+    return `<details class="dr-foot" ${V.bkOpen ? "open" : ""}><summary>Backup and restore</summary>` +
+      `<p class="notes">Saves live in this browser on this device only. Clearing your browser data erases them, and your phone and computer don't share them. Download a backup now and then; restore it on any device.</p>` +
+      `<div class="chips"><button type="button" class="chip" data-bk="fill">Show backup text</button><button type="button" class="chip" data-bk="dl">Download backup file</button><label class="chip" style="cursor:pointer">Restore from file<input type="file" accept=".json,application/json" data-bk="file" hidden></label></div>` +
+      `<textarea id="sv-json" rows="6" placeholder="Backup text appears here. To restore, paste a backup here and press Restore from text." aria-label="Backup text"></textarea>` +
+      `<div class="chips" style="margin-top:6px"><button type="button" class="chip" data-bk="restore">Restore from text</button></div>` +
+      `<p class="notes" data-bkmsg>${esc(V.note)}</p></details>`;
+  }
+
+  function render() {
+    const n = Saved.count();
+    btn.textContent = n ? `★ Saved (${n})` : "★ Saved";
+    if (!V.open) return;
+    const C = Saved.data;
+    $("sv-tabs").innerHTML = [["props", "Props", C.props.length], ["lineups", "Lineups", C.lineups.length], ["teasers", "Teasers", C.teasers.length]]
+      .map(([k, l, c]) => `<button type="button" class="chip" data-tab="${k}" aria-pressed="${V.tab === k}">${l} (${c})</button>`).join("");
+    const keep = body.scrollTop;
+    body.innerHTML = (Saved.persisted ? "" : `<p class="warn">Your browser is blocking storage, so saves will be lost when you close this page. Use Backup and restore below to keep a copy.</p>`) +
+      (V.tab === "props" ? propsHTML() : V.tab === "lineups" ? lineupsHTML() : teasersHTML()) + footHTML();
+    body.scrollTop = keep;
+  }
+
+  function open(tab) {
+    if (tab) V.tab = tab;
+    V.open = true; V.opener = document.activeElement;
+    box.hidden = false; back.hidden = false;
+    render();
+    box.focus();
+  }
+  function close() {
+    V.open = false; box.hidden = true; back.hidden = true; V.confirm = "";
+    if (V.opener && V.opener.focus) try { V.opener.focus(); } catch (e) { /* ignore */ }
+  }
+  btn.addEventListener("click", () => open());
+  $("sv-close").addEventListener("click", close);
+  back.addEventListener("click", close);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && V.open) close(); });
+  box.addEventListener("toggle", (e) => { if (e.target.matches("details.dr-foot")) V.bkOpen = e.target.open; }, true);
+  Saved.on(render);
+
+  const go = (tabId) => { close(); $(tabId).click(); try { window.scrollTo(0, 0); } catch (e) { /* ignore */ } };
+  box.addEventListener("click", (e) => {
+    const t = e.target.closest("button, label.chip");
+    if (!t) return;
+    const ds = t.dataset;
+    if (ds.tab) { V.tab = ds.tab; V.confirm = ""; render(); return; }
+    if (ds.wk !== undefined) { V.allWeeks = ds.wk === "1"; render(); return; }
+    if (ds.flip) { const x = Saved.data.props.find((y) => y.id === ds.flip); if (x) Saved.update("props", x.id, { side: x.side === "under" ? "over" : "under" }); return; }
+    if (ds.del) { const [k, id] = ds.del.split("|"); V.sel.delete(id); Saved.remove(k, id); return; }
+    if (ds.delall) { if (V.confirm === ds.delall) { V.confirm = ""; V.sel.clear(); Saved.clear(ds.delall); } else { V.confirm = ds.delall; render(); } return; }
+    if (ds.selall) { Saved.data.props.filter((x) => V.allWeeks || x.wk === UP || x.wk === undefined).forEach((x) => V.sel.add(x.id)); render(); return; }
+    if (ds.selnone) { V.sel.clear(); render(); return; }
+    if (ds.open) {
+      const x = Saved.data.props.find((y) => y.id === ds.open);
+      if (x && window.PropApp) { window.PropApp.openPlayer(x.pid, x.stat, x.line, x.side, x.odds); go("tab-players"); }
+      return;
+    }
+    if (ds.loadl) { const l = Saved.data.lineups.find((y) => y.id === ds.loadl); if (l && RE.loadLineup) { RE.loadLineup(l); go("tab-proj"); } return; }
+    if (ds.loadt) { const l = Saved.data.teasers.find((y) => y.id === ds.loadt); if (l && RE.loadTeaser) { RE.loadTeaser(l); go("tab-tease"); } return; }
+    if (ds.bk === "fill") { $("sv-json").value = Saved.exportJSON(); $("sv-json").select(); return; }
+    if (ds.bk === "dl") {
+      try {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([Saved.exportJSON()], { type: "application/json" }));
+        a.download = "razors-edge-backup.json";
+        document.body.appendChild(a); a.click(); a.remove();
+        V.note = "Backup downloaded.";
+      } catch (err) { V.note = "Your browser blocked the download. Use Show backup text and copy it instead."; }
+      const m = box.querySelector("[data-bkmsg]"); if (m) m.textContent = V.note;
+      return;
+    }
+    if (ds.bk === "restore") {
+      const r = Saved.importJSON($("sv-json").value);
+      V.note = r.error || `Restored. ${r.added} new item${r.added === 1 ? "" : "s"} added.`;
+      render();
+      return;
+    }
+  });
+  box.addEventListener("change", (e) => {
+    const t = e.target, ds = t.dataset;
+    if (ds.sel) { if (t.checked) V.sel.add(ds.sel); else V.sel.delete(ds.sel); render(); }
+    else if (ds.podds !== undefined) { Saved.update("props", ds.podds, { odds: parseAmerican(t.value) }); }
+    else if (ds.pnote !== undefined) { Saved.update("props", ds.pnote, { note: t.value.trim() }); }
+    else if (ds.name) { const [k, id] = ds.name.split("|"); if (t.value.trim()) Saved.update(k, id, { name: t.value.trim() }); }
+    else if (ds.stake !== undefined) { const v = parseFloat(t.value); V.stake = Number.isFinite(v) && v > 0 ? v : 10; render(); }
+    else if (ds.book !== undefined) { V.book = t.value; render(); }
+    else if (ds.bk === "file" && t.files && t.files[0]) {
+      const fr = new FileReader();
+      fr.onload = () => { const r = Saved.importJSON(String(fr.result)); V.note = r.error || `Restored. ${r.added} new item${r.added === 1 ? "" : "s"} added.`; render(); };
+      fr.readAsText(t.files[0]);
+    }
+  });
+  // switching to a view (or saving something) keeps the button count right
+  render();
 })();
 </script>
