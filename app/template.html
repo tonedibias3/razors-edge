@@ -409,6 +409,10 @@ html[data-look="card"] .drawer { border-left: 5px solid var(--gold); }
 html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
 /* settings pop-up */
 .setrow { margin: 14px 0; }
+#ac-body { text-align: center; }
+#ac-body .chips { justify-content: center; }
+#ac-body .setrow .lbl { display: block; text-align: center; }
+#ac-body .notes, #ac-body .sub { text-align: center; }
 .setrow .lbl { margin-bottom: 8px; }
 .looks { display: grid; gap: 8px; }
 .looks button { text-align: left; height: auto; padding: 10px 14px; }
@@ -1851,8 +1855,9 @@ const Saved = (() => {
         `<button type="button" class="chip primary" data-ac="lupdate">Update line</button></div>` +
         `<p class="notes" id="ac-imp" style="margin:6px 0 0">${actMsg || ""}</p>` +
         (lineEdited(g) ? `<button type="button" class="chip" data-ac="lreset" style="margin-top:8px">Reset to original line</button>` : "") + `<p class="notes" style="margin:4px 0 0">Changes the line everywhere (Lines, Teasers, team totals, tease buttons) on this device.</p></div>` +
-      (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">${esc(team)} team total (type your book's number)</span><div class="chips"><input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:90px">` +
-        `<button type="button" class="chip" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over</button><button type="button" class="chip" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under</button></div><p class="notes" style="margin:4px 0 0">Starts at the expected score (${imp}). Change it to your book's line.</p></div>`) +
+      (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">Bet ${esc(team)} team total</span><div class="chips"><button type="button" class="chip ${picked(g, "tover", team, ttv) ? "" : "primary"}" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over <span id="ac-tv1">${ttv}</span></button>` +
+        `<input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:84px">` +
+        `<button type="button" class="chip ${picked(g, "tunder", team, ttv) ? "" : "primary"}" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under <span id="ac-tv2">${ttv}</span></button></div><p class="notes" style="margin:4px 0 0">Starts at ${esc(team)}'s implied total (${imp}). Type your book's number if it's different, then tap Over or Under to save the pick.</p></div>`) +
       `<div class="setrow" style="margin:12px 0 4px"><span class="lbl">Tease the game total (${S.pts} pts)</span><div class="chips">` +
         [g[7] === null ? null : ["over", `Game over ${g[7]} → ${r1(g[7] - S.pts)}`], g[7] === null ? null : ["under", `Game under ${g[7]} → ${r1(g[7] + S.pts)}`]].filter(Boolean).map(([k, l]) => { const on2 = S.legs.some((x) => x.week === g[1] && lt(x) === k && x.team === (isTeamTot(k) ? team : g[4])); return `<button type="button" class="chip ${on2 ? "" : "primary"}" data-ac="tt-${k}">${on2 ? "✓ " : "+ "}${l}</button>`; }).join("") + `</div></div>` +
       `<p class="notes" id="ac-msg" style="margin-top:10px">${n ? `Your teaser has ${n} leg${n > 1 ? "s" : ""}.` : "Your teaser is empty."}${S.msg ? " " + esc(S.msg) : ""} <button type="button" class="linkbtn" data-ac="view">View teaser</button></p>`;
@@ -1897,6 +1902,7 @@ const Saved = (() => {
     actMsg = "✓ Updated: " + now; openAct(g, team);
   }
   $("ac-modal").addEventListener("input", (e) => {
+    if (e.target.id === "ac-tt") { const v = e.target.value; ["ac-tv1", "ac-tv2"].forEach((id) => { const el = $(id); if (el) el.textContent = v; }); return; }
     if (!act || !(e.target.id === "ac-sp" || e.target.id === "ac-gt")) return;
     const el = $("ac-imp"); if (el) el.textContent = "New line not saved yet. Press Update line. " + impText(act.g, parseFloat($("ac-sp").value), parseFloat($("ac-gt").value));
   });
