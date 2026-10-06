@@ -105,6 +105,14 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { height: 42px; padding: 0 14px; border: 1px solid var(--axis); background: var(--surface); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.lbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 8px; margin: 0 0 12px; }
+.lbar .lf { display: block; min-width: 0; }
+.lbar .lf.wide { grid-column: 1 / -1; }
+.lbar .lf .lbl { display: block; margin-bottom: 4px; font-size: 11px; }
+.lbar select { width: 100%; height: 42px; max-width: 100%; }
+.lbar .lsrow { display: flex; gap: 6px; }
+.lbar .lsrow select { flex: 1; min-width: 0; }
+.lbar .lsrow button { height: 42px; white-space: nowrap; padding: 0 10px; }
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .tabs .chip { white-space: nowrap; }
 .view { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -636,11 +644,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
   <div class="view" id="view-tease" role="tabpanel" aria-labelledby="tab-tease">
     <div class="chips" id="z-mode" role="group" aria-label="Show"></div>
     <div id="z-lines" style="margin-top:12px">
-      <div class="controls pc"><div class="field"><label class="lbl" for="l-week">Week</label><select id="l-week"></select></div></div>
-      <div class="chips" id="l-conf" role="group" aria-label="Which games" style="margin:0 0 8px" hidden></div>
-      <div class="chips" id="l-dog" role="group" aria-label="Favorites and underdogs" style="margin:0 0 8px"></div>
-      <div class="chips" id="l-filter" role="group" aria-label="Filter games" style="margin:0 0 8px"></div>
-      <div class="chips" id="l-sort" role="group" aria-label="Sort games" style="margin:0 0 8px"></div>
+      <div class="lbar" id="l-bar"><label class="lf"><span class="lbl">Week</span><select id="l-week"></select></label><div id="l-dyn" style="display:contents"></div></div>
       <p class="tiles-head" id="l-head" style="margin:0"></p>
       <section class="panel" aria-label="Spreads"><div class="tablewrap" style="margin-top:0"><table id="l-table"></table></div></section>
       <p class="notes" id="l-notes">Road team on the left, home team on the right. The number is each team's spread (minus means favored). The small percent under each spread (and the shading) is how often teams with a similar spread since 2015 covered it straight up: green is above 50%, red is below, and it stays close to even because books set these lines to be about fair. Lines come from one free data file, so they can differ a little from your book. Type over a line on the Teasers view to match yours.</p>
@@ -1766,10 +1770,10 @@ const Saved = (() => {
   const pickObj = (g, type, team, line) => ({ lg: LG, season: SEASON, week: g[1], away: g[3], home: g[4], date: g[2], type, team: team || "", line: pickLine(g, type, team, line) });
   const impOf = (g, team) => (g[7] === null || g[6] === null ? null : g[4] === team ? (g[7] + g[6]) / 2 : (g[7] - g[6]) / 2);
   function renderLines() {
-    $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " (upcoming)" : w < nextWeek ? " (played)" : ""}</option>`).join("");
+    $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " · next" : w < nextWeek ? " · played" : ""}</option>`).join("");
     const allG0 = SCH.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => (String(a[2]) + (a[10] || "")).localeCompare(String(b[2]) + (b[10] || "")));
     const cfOn = isC();
-    $("l-conf").hidden = !cfOn;
+    let gamesSel = "";
     $("l-notes").textContent = (cfOn ? NOTE_L.replace("since 2015", "since " + FIRSTY) + " College history is shorter than the NFL's, so those percentages are rougher. # is the AP rank." : NOTE_L);
     let rkOf = () => null, allG = allG0;
     if (cfOn) {
@@ -1781,28 +1785,29 @@ const Saved = (() => {
       const CF = [["p4t25", "Power 4 + Top 25", (g) => any(g, p4) || any(g, rkOf)], ["top25", "Top 25", (g) => any(g, rkOf)], ["p4", "Power 4", (g) => any(g, p4)], ["g5", "Group of 5", (g) => any(g, (t) => !p4(t))], ["all", "All FBS", () => true]];
       const confs = [...new Set(allG0.flatMap((g) => [cf(g[3]), cf(g[4])]).filter(Boolean))].sort();
       const cur = S.cf.startsWith("conf:") ? S.cf.slice(5) : "";
-      $("l-conf").innerHTML = CF.map(([k, l, f]) => `<button type="button" class="chip" data-cf="${k}" aria-pressed="${S.cf === k}">${l} (${allG0.filter(f).length})</button>`).join("") +
-        `<select id="l-cs" aria-label="One conference" style="height:42px;width:auto;max-width:100%"><option value="">One conference…</option>${confs.map((c) => `<option value="${esc(c)}" ${c === cur ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+      gamesSel = `<label class="lf"><span class="lbl">Games</span><select id="l-gm" aria-label="Which games">${CF.map(([k, l, f]) => `<option value="${k}" ${S.cf === k ? "selected" : ""}>${l} (${allG0.filter(f).length})</option>`).join("")}<optgroup label="One conference">${confs.map((c) => `<option value="conf:${esc(c)}" ${c === cur ? "selected" : ""}>${esc(c)} (${allG0.filter((g) => any(g, (t) => cf(t) === c)).length})</option>`).join("")}</optgroup></select></label>`;
       allG = allG0.filter(cur ? (g) => any(g, (t) => cf(t) === cur) : (CF.find((x) => x[0] === S.cf) || CF[4])[2]);
     }
     const BANDS = [["any", "Any spread", () => true], ["s3", "Up to 3", (v) => v <= 3], ["s6", "3.5 to 6.5", (v) => v >= 3.5 && v <= 6.5], ["s9", "7 to 9.5", (v) => v >= 7 && v <= 9.5], ["s10", "10 or more", (v) => v >= 10]];
     const dogOK = (g) => (S.df === "any" ? true : S.df === "hd" ? g[6] < 0 : g[6] > 0) && (BANDS.find((x) => x[0] === S.db) || BANDS[0])[2](Math.abs(g[6]));
     const dogBase = allG;
     allG = allG.filter(dogOK);
-    $("l-dog").innerHTML = [["any", "Any side"], ["hd", "Home dogs"], ["rd", "Road dogs"]].map(([k, l]) => `<button type="button" class="chip" data-df="${k}" aria-pressed="${S.df === k}">${l}${k === "any" ? "" : ` (${dogBase.filter((g) => (k === "hd" ? g[6] < 0 : g[6] > 0)).length})`}</button>`).join("") +
-      `<select id="l-db" aria-label="Size of the spread" style="height:42px;width:auto;max-width:100%">${BANDS.map(([k, l]) => `<option value="${k}" ${S.db === k ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+    const sideSel = `<label class="lf"><span class="lbl">Side</span><select id="l-sd" aria-label="Favorites and underdogs">${[["any", "Any side"], ["hd", "Home dogs"], ["rd", "Road dogs"]].map(([k, l]) => `<option value="${k}" ${S.df === k ? "selected" : ""}>${l}${k === "any" ? "" : ` (${dogBase.filter((g) => (k === "hd" ? g[6] < 0 : g[6] > 0)).length})`}</option>`).join("")}</select></label>` +
+      `<label class="lf"><span class="lbl">Spread size</span><select id="l-db" aria-label="Size of the spread">${BANDS.map(([k, l]) => `<option value="${k}" ${S.db === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>`;
     const tr = {};
     const trend = (t) => tr[t] || (tr[t] = tally(teamRows(t).filter((x) => x.done).slice(-10)));
     const ovr = (t) => { const x = trend(t); return x.o + x.u ? x.o / (x.o + x.u) : 0.5; };
     const FILTERS = [["all", "All games", () => true], ["over", "Overs hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 >= 0.6], ["under", "Unders hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 <= 0.4], ["ats", "Teams covering", (g) => [g[3], g[4]].some((t) => { const x = trend(t); return x.n >= 5 && x.c / (x.n - x.cp || 1) >= 0.7; })]];
-    $("l-filter").innerHTML = FILTERS.map(([k, l, f]) => `<button type="button" class="chip" data-lf="${k}" aria-pressed="${S.lf === k}">${l} (${allG.filter(f).length})</button>`).join("");
+    const showSel = `<label class="lf"><span class="lbl">Show</span><select id="l-lf" aria-label="Filter games">${FILTERS.map(([k, l, f]) => `<option value="${k}" ${S.lf === k ? "selected" : ""}>${l} (${allG.filter(f).length})</option>`).join("")}</select></label>`;
     const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
     const hiTT = (g) => Math.max(g[7] + g[6], g[7] - g[6]) / 2;
     const LSORT = [["time", "Kickoff time"], ["total", "Game total"], ["tt", "Team total"], ["spread", "Spread size"]];
     const lsKey = { total: (g) => g[7] || 0, tt: (g) => hiTT(g) || 0, spread: (g) => Math.abs(g[6]) || 0 }[S.ls];
     if (lsKey) games.sort((a, b) => (lsKey(b) - lsKey(a)) * S.ld);
     const lsArrow = (k) => (S.ls === k ? (S.ld > 0 ? " ↓" : " ↑") : "");
-    $("l-sort").innerHTML = `<span class="sub" style="margin:0 4px 0 0">Sort by</span>` + LSORT.map(([k, l]) => `<button type="button" class="chip" data-ls="${k}" aria-pressed="${S.ls === k}" title="${k === "time" ? "" : "Click again to flip high/low"}">${l}${k === "time" ? "" : S.ls === k ? (S.ld > 0 ? (k === "spread" ? " · biggest first" : " · highest first") : (k === "spread" ? " · smallest first" : " · lowest first")) : ""}</button>`).join("");
+    const sortSel = `<label class="lf${S.ls === "time" ? "" : " wide"}"><span class="lbl">Sort by</span><div class="lsrow"><select id="l-ls" aria-label="Sort games">${LSORT.map(([k, l]) => `<option value="${k}" ${S.ls === k ? "selected" : ""}>${l}</option>`).join("")}</select>` +
+      (S.ls === "time" ? "" : `<button type="button" class="chip" data-lsdir="1" title="Flip the order">${S.ld > 0 ? (S.ls === "spread" ? "Biggest ↓" : "High ↓") : (S.ls === "spread" ? "Smallest ↑" : "Low ↑")}</button>`) + `</div></label>`;
+    $("l-dyn").innerHTML = gamesSel + sideSel + showSel + sortSel;
     $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>${recOf(t).n ? `<span class="rec" title="${isC() ? "Overall record (conference record)" : "Record this season"}">${recOf(t).txt}${isC() ? ` (${recOf(t).conf})` : ""}</span>` : ""}`;
@@ -1823,12 +1828,14 @@ const Saved = (() => {
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
   }
   const lsClick = (e) => { const b = e.target.closest("button[data-ls]"); if (!b) return; const k = b.dataset.ls; if (k === "time") { S.ls = "time"; S.ld = 1; } else if (S.ls === k) S.ld = -S.ld; else { S.ls = k; S.ld = 1; } renderLines(); };
-  $("l-sort").addEventListener("click", lsClick); $("l-table").addEventListener("click", lsClick);
-  $("l-dog").addEventListener("click", (e) => { const b = e.target.closest("button[data-df]"); if (b) { S.df = b.dataset.df; renderLines(); } });
-  $("l-dog").addEventListener("change", (e) => { if (e.target.id === "l-db") { S.db = e.target.value; renderLines(); } });
-  $("l-conf").addEventListener("click", (e) => { const b = e.target.closest("button[data-cf]"); if (b) { S.cf = b.dataset.cf; renderLines(); } });
-  $("l-conf").addEventListener("change", (e) => { if (e.target.id === "l-cs") { S.cf = e.target.value ? "conf:" + e.target.value : "all"; renderLines(); } });
-  $("l-filter").addEventListener("click", (e) => { const b = e.target.closest("button[data-lf]"); if (b) { S.lf = b.dataset.lf; renderLines(); } });
+  $("l-table").addEventListener("click", lsClick);
+  $("l-dyn").addEventListener("change", (e) => {
+    const id = e.target.id, v = e.target.value;
+    if (id === "l-gm") S.cf = v; else if (id === "l-sd") S.df = v; else if (id === "l-db") S.db = v; else if (id === "l-lf") S.lf = v;
+    else if (id === "l-ls") { S.ls = v; S.ld = 1; } else return;
+    renderLines();
+  });
+  $("l-dyn").addEventListener("click", (e) => { if (e.target.closest("button[data-lsdir]")) { S.ld = -S.ld; renderLines(); } });
   $("l-table").addEventListener("click", (e) => {
     if (!e.target.closest(".ou")) warn = "";
     const t = e.target.closest("[data-team]");
