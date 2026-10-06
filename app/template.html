@@ -2417,24 +2417,24 @@ const Saved = (() => {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   if (!TS.ok) { $("tab-teams").hidden = true; return; }
-  const T = { side: "def", last: 0, sort: "total" };
+  const T = { side: "def", last: 0, sort: "total", worst: false };
   const nm = (t) => TEAM_NAMES[t] || t;
   const COLS = [["total", "Total"], ["pass", "Pass"], ["rush", "Rush"], ["pts", "Points"]];
   const rkBg = (rank, of) => { const soft = 1 - (rank - 1) / (of - 1); const d = Math.abs(soft - 0.5) * 2; return d < 0.15 ? "" : ` style="background:color-mix(in srgb, var(${soft > 0.5 ? "--accent" : "--bad"}) ${Math.round(8 + d * 26)}%, transparent)"`; };
   function render() {
     $("ts-side").innerHTML = [["def", "Defenses"], ["off", "Offenses"]].map(([k, l]) => `<button type="button" class="chip" data-side="${k}" aria-pressed="${T.side === k}">${l}</button>`).join("");
     const rows = TS.table(T.last), rk = T.side === "off" ? "ro" : "rd", val = T.side === "off" ? "off" : "def";
-    rows.sort((a, b) => a[rk][T.sort] - b[rk][T.sort] || a.team.localeCompare(b.team));
+    rows.sort((a, b) => (T.worst ? b[rk][T.sort] - a[rk][T.sort] : a[rk][T.sort] - b[rk][T.sort]) || a.team.localeCompare(b.team));
     const unit = (k) => (k === "pts" ? "pts/game" : "yds/game");
-    $("ts-head").textContent = `${T.side === "def" ? "Defenses: yards and points allowed" : "Offenses: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : DATA.season + " season"} · ${rows.length} teams`;
-    $("ts-table").innerHTML = `<thead><tr><th class="num">#</th><th>Team</th>` + COLS.map(([k, l]) => `<th class="num"><button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${T.sort === k}">${l}</button></th>`).join("") + `<th class="num fl">Games</th></tr></thead><tbody>` +
-      rows.map((r, i) => `<tr style="--tc:${tcol(r.team)}"><td class="num">${i + 1}</td><td><button type="button" class="tmpill" data-team="${r.team}" aria-label="Open ${esc(nm(r.team))} stats">${teamPill(r.team)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
+    $("ts-head").textContent = `${T.side === "def" ? "Defenses: yards and points allowed" : "Offenses: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : DATA.season + " season"} · ${rows.length} teams · ${T.worst ? "worst" : "best"} first, tap the column again to flip`;
+    $("ts-table").innerHTML = `<thead><tr><th class="num">#</th><th>Team</th>` + COLS.map(([k, l]) => `<th class="num"><button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${T.sort === k}" title="${T.sort === k ? (T.worst ? "Worst first. Tap for best first" : "Best first. Tap for worst first") : "Sort by " + l}">${l}${T.sort === k ? (T.worst ? " ▲" : " ▼") : ""}</button></th>`).join("") + `<th class="num fl">Games</th></tr></thead><tbody>` +
+      rows.map((r, i) => `<tr style="--tc:${tcol(r.team)}"><td class="num">${r[rk][T.sort]}</td><td><button type="button" class="tmpill" data-team="${r.team}" aria-label="Open ${esc(nm(r.team))} stats">${teamPill(r.team)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
         COLS.map(([k]) => `<td class="num"${rkBg(r[rk][k], rows.length)} title="${unit(k)}"><strong>${r[val][k].toFixed(1)}</strong><span class="sub">${ordn(r[rk][k])}</span></td>`).join("") + `<td class="num fl">${r.n}</td></tr>`).join("") + "</tbody>";
   }
   $("ts-side").addEventListener("click", (e) => { const b = e.target.closest("button[data-side]"); if (b) { T.side = b.dataset.side; render(); } });
   $("ts-win").addEventListener("change", (e) => { T.last = +e.target.value; render(); });
   $("ts-table").addEventListener("click", (e) => {
-    const s = e.target.closest("button[data-sort]"); if (s) { T.sort = s.dataset.sort; render(); return; }
+    const s = e.target.closest("button[data-sort]"); if (s) { if (T.sort === s.dataset.sort) T.worst = !T.worst; else { T.sort = s.dataset.sort; T.worst = false; } render(); return; }
     const t = e.target.closest("[data-team]"); if (t && RE.openTeam) RE.openTeam(t.dataset.team);
   });
   render();
