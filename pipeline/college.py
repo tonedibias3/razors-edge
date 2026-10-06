@@ -10,7 +10,7 @@ from config import WORK
 
 BASES = ["https://apinext.collegefootballdata.com", "https://api.collegefootballdata.com"]
 KEY = os.environ.get("CFBD_API_KEY", "").strip()
-YEARS_BACK = 4   # this season plus four earlier ones for the "similar games" history
+YEARS_BACK = 13  # this season plus 13 earlier ones (lines exist from 2013) for head-to-head; trends and "similar games" use the last five seasons
 ET = ZoneInfo("America/New_York")
 
 

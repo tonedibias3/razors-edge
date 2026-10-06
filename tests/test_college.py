@@ -53,7 +53,7 @@ def t(name, cond):
     ok = ok and cond
 t("teams loaded", len(res["teams"]) == len(TEAMS))
 t("FCS game dropped", all(r[3] in res["teams"] and r[4] in res["teams"] for r in res["sched"]))
-t("five seasons of games", {r[0] for r in res["sched"]} == set(range(season - 4, season + 1)))
+t("all seasons of games", {r[0] for r in res["sched"]} == set(range(season - college.YEARS_BACK, season + 1)))
 t("upcoming week found", res["week"] == 6)
 t("rankings by week", res["ranks"]["3"][TEAMS[0][0]] == 1)
 g = next(r for r in res["sched"] if r[5] is not None)

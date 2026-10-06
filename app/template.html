@@ -1617,8 +1617,12 @@ const Saved = (() => {
   const D = DATA;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  let LG = "nfl", SCH = D.sched, SEASON = D.season, TG = teamGames(SCH), FIRSTY = Math.min(...SCH.map((r) => r[0]));
+  let LG = "nfl", SCH = D.sched, SEASON = D.season, FIRSTY = Math.min(...SCH.map((r) => r[0]));
   const isC = () => LG === "cfb";
+  const recentMin = () => (isC() ? SEASON - 4 : 0);
+  const TRENDY = () => (isC() ? SEASON - 4 : 2023);
+  const recentSch = () => SCH.filter((r) => r[0] >= recentMin());
+  let TG = teamGames(recentSch()), TTC = null, GTC = null, warn = "";
   const DEF_ODDS = { "6|6": 525, "6|7": 400, "8|6": 1200 };
   const sl = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + (Number.isInteger(v) ? Math.abs(v) : Math.abs(v).toFixed(1));
   const pct = (v) => (v === null || v === undefined ? "–" : Math.round(v * 100) + "%");
@@ -1633,7 +1637,7 @@ const Saved = (() => {
     if (lg === LG) return;
     STORE[LG] = { lf: S.lf, cf: S.cf, pts: S.pts, stake: S.stake, week: S.week, legs: S.legs, odds: S.odds, ov: S.ov };
     LG = lg; SCH = lg === "cfb" ? COL.sched : D.sched; SEASON = lg === "cfb" ? COL.season : D.season;
-    TG = teamGames(SCH); FIRSTY = Math.min(...SCH.map((r) => r[0]));
+    FIRSTY = Math.min(...SCH.map((r) => r[0])); TG = teamGames(recentSch()); TTC = null; GTC = null; warn = "";
     ({ w: weeks, n: nextWeek } = wkInfo(SCH, SEASON));
     Object.assign(S, STORE[lg] || { lf: "all", cf: lg === "cfb" ? "p4t25" : "all", pts: 6, stake: 25, week: nextWeek, legs: [], odds: {}, ov: {} }, { msg: "" });
     if (!weeks.includes(S.week)) S.week = nextWeek;
@@ -1641,15 +1645,45 @@ const Saved = (() => {
   const gameOf = (team, week) => SCH.find((r) => r[0] === SEASON && r[1] === week && (r[3] === team || r[4] === team));
   const key = (team, week) => team + "|" + week;
   function sideLine(r, team) { return r[6] === null ? null : r[4] === team ? -r[6] : r[6]; }
-  function addLeg(team, week, line) {
+  const lt = (l) => l.type || "spread";
+  const isTeamTot = (t) => t === "tover" || t === "tunder";
+  const isOv = (t) => t === "tover" || t === "over";
+  const gameVal = (g, team, type) => (g[5] === null ? null : type === "spread" ? (g[4] === team ? g[5] : -g[5]) : isTeamTot(type) ? (g[4] === team ? g[9] : g[8]) : g[8] + g[9]);
+  // how far the leg wins by once the teaser points are applied (negative = missed)
+  const legWin = (l, pts, res) => (lt(l) === "spread" ? res + l.line + pts : isOv(lt(l)) ? res - l.line + pts : l.line + pts - res);
+  const teasedOf = (l, pts) => (lt(l) === "spread" ? l.line + pts : isOv(lt(l)) ? l.line - pts : l.line + pts);
+  const r1 = (v) => Math.round(v * 10) / 10;
+  function addLeg(team, week, line, type) {
+    type = type || "spread";
     const g = gameOf(team, week);
     if (!g) return;
     const opp = g[4] === team ? g[3] : g[4];
-    if (S.legs.some((l) => l.team === team && l.week === week)) return;
-    if (S.legs.some((l) => l.opp === team && l.team === opp && l.week === week)) { S.msg = `You already have the other side of ${g[3]} at ${g[4]} in your teaser.`; return; }
-    S.legs.push({ team, opp, home: g[4] === team ? 1 : 0, week, line: line === undefined ? sideLine(g, team) : line, res: g[5] === null ? null : (g[4] === team ? g[5] : -g[5]) });
+    if (S.legs.some((l) => l.team === team && l.week === week && lt(l) === type)) return;
+    if (type === "spread" && S.legs.some((l) => l.opp === team && l.team === opp && l.week === week && lt(l) === "spread")) { S.msg = `You already have the other side of ${g[3]} at ${g[4]} in your teaser.`; return; }
+    const other = { tover: "tunder", tunder: "tover", over: "under", under: "over" }[type];
+    if (other && S.legs.some((l) => l.team === team && l.week === week && lt(l) === other)) { S.msg = "You already have the opposite side of that total in your teaser."; return; }
+    if (line === undefined) line = type === "spread" ? sideLine(g, team) : (isTeamTot(type) ? null : g[7]);
+    if (line === null || line === undefined) return;
+    S.legs.push({ team, opp, home: g[4] === team ? 1 : 0, week, type, line, res: gameVal(g, team, type) });
     S.msg = "";
   }
+  const ttRows = () => TTC || (TTC = recentSch().filter((r) => r[5] !== null && r[6] !== null && r[7] !== null).flatMap((r) => [{ line: (r[7] + r[6]) / 2, val: r[9] }, { line: (r[7] - r[6]) / 2, val: r[8] }]));
+  const gtRows = () => GTC || (GTC = recentSch().filter((r) => r[5] !== null && r[7] !== null).map((r) => ({ line: r[7], val: r[8] + r[9] })));
+  function totStats(rows, over, line, pts) {
+    for (const w of [0.5, 1, 1.5, 2, 3]) {
+      const sm = rows.filter((x) => Math.abs(x.line - line) <= w + 1e-9);
+      if (sm.length >= 80 || w === 3) {
+        let c = 0, p = 0;
+        for (const x of sm) { const v = over ? x.val - x.line + pts : x.line + pts - x.val; if (v > 0) c++; else if (v === 0) p++; }
+        return { n: sm.length, cover: sm.length ? c / sm.length : null, push: sm.length ? p / sm.length : null, width: w };
+      }
+    }
+  }
+  const legStat = (l, pts) => (lt(l) === "spread" ? legStats(TG, l.line, pts) : totStats(isTeamTot(lt(l)) ? ttRows() : gtRows(), isOv(lt(l)), l.line, pts));
+  const legName = (l) => (lt(l) === "spread" ? `<strong>${tp(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${tp(l.opp)} · wk ${l.week}</span>` :
+    isTeamTot(lt(l)) ? `<strong>${tp(l.team)} ${isOv(lt(l)) ? "over" : "under"}</strong><span class="sub">team total · ${l.home ? "vs" : "at"} ${tp(l.opp)} · wk ${l.week}</span>` :
+    `<strong>${isOv(lt(l)) ? "Over" : "Under"}</strong><span class="sub">game total · ${tp(l.opp)} at ${tp(l.team)} · wk ${l.week}</span>`);
+  const legRes = (l) => { if (l.res === null || l.res === undefined) return ""; const x = legWin(l, S.pts, l.res); return x > 0 ? `<span class="res ok">Covered by ${r1(x)}</span>` : x === 0 ? `<span class="res">Push</span>` : `<span class="res no">Missed by ${r1(-x)}</span>`; };
   // Your Week 5 slip as a starting point. The lines are the ones your book showed before the teaser.
   [["PHI", 7], ["MIA", 7], ["TEN", 7], ["LAC", 3.5], ["NYG", 3.5], ["LV", 3.5]].forEach(([t, l]) => { if (weeks.includes(5)) addLeg(t, 5, l); });
 
@@ -1706,7 +1740,7 @@ const Saved = (() => {
     const FILTERS = [["all", "All games", () => true], ["over", "Overs hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 >= 0.6], ["under", "Unders hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 <= 0.4], ["ats", "Teams covering", (g) => [g[3], g[4]].some((t) => { const x = trend(t); return x.n >= 5 && x.c / (x.n - x.cp || 1) >= 0.7; })]];
     $("l-filter").innerHTML = FILTERS.map(([k, l, f]) => `<button type="button" class="chip" data-lf="${k}" aria-pressed="${S.lf === k}">${l} (${allG.filter(f).length})</button>`).join("");
     const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
-    $("l-head").textContent = allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
+    $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>`;
     const cell = (g, team) => {
@@ -1728,6 +1762,7 @@ const Saved = (() => {
   $("l-conf").addEventListener("change", (e) => { if (e.target.id === "l-cs") { S.cf = e.target.value ? "conf:" + e.target.value : "all"; renderLines(); } });
   $("l-filter").addEventListener("click", (e) => { const b = e.target.closest("button[data-lf]"); if (b) { S.lf = b.dataset.lf; renderLines(); } });
   $("l-table").addEventListener("click", (e) => {
+    if (!e.target.closest(".ou")) warn = "";
     const t = e.target.closest("[data-team]");
     if (t) { openTeam(t.dataset.team); return; }
     const h = e.target.closest("[data-h2h]");
@@ -1737,14 +1772,15 @@ const Saved = (() => {
     const [away, home, type, team] = b.dataset.pick.split("|");
     const g = SCH.find((r) => r[0] === SEASON && r[1] === S.week && r[3] === away && r[4] === home);
     if (!g) return;
-    if (type === "spread") { actTT = null; openAct(g, team); } else Saved.togglePick(pickObj(g, type, team));
+    if (type === "spread") { actTT = null; openAct(g, team); }
+    else { const opp = type === "over" ? "under" : "over"; warn = !picked(g, type) && picked(g, opp) ? `Heads up: you've saved both the Over and the Under on ${g[3]} at ${g[4]}, so one of them has to lose.` : ""; Saved.togglePick(pickObj(g, type, team)); }
   });
   // tap a spread: save the pick, add it to the teaser, or look at the team
   let act = null, actTT = null;
   function openAct(g, team) {
     if (!act || act.team !== team || act.g !== g) actTT = null;
     act = { g, team, tt: team + g[1] };
-    const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1]), on = picked(g, "spread", team);
+    const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1] && lt(l) === "spread"), on = picked(g, "spread", team);
     const n = S.legs.length, imp = impOf(g, team), ttv = actTT !== null && act.tt === team + g[1] ? actTT : imp === null ? 0 : Math.round(imp * 2) / 2;
     $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>` +
       `<div style="display:grid;gap:8px;margin-top:10px">` +
@@ -1753,6 +1789,8 @@ const Saved = (() => {
       `<button type="button" class="chip" data-ac="team">${esc(team)} trends and stats</button></div>` +
       (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">${esc(team)} team total (type your book's number)</span><div class="chips"><input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:90px">` +
         `<button type="button" class="chip" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over</button><button type="button" class="chip" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under</button></div><p class="notes" style="margin:4px 0 0">Starts at the expected score (${imp}). Change it to your book's line.</p></div>`) +
+      `<div class="setrow" style="margin:12px 0 4px"><span class="lbl">Tease a total (${S.pts} pts)</span><div class="chips">` +
+        [imp === null ? null : ["tover", `${esc(team)} over ${ttv} → ${r1(ttv - S.pts)}`], imp === null ? null : ["tunder", `${esc(team)} under ${ttv} → ${r1(ttv + S.pts)}`], g[7] === null ? null : ["over", `Game over ${g[7]} → ${r1(g[7] - S.pts)}`], g[7] === null ? null : ["under", `Game under ${g[7]} → ${r1(g[7] + S.pts)}`]].filter(Boolean).map(([k, l]) => { const on2 = S.legs.some((x) => x.week === g[1] && lt(x) === k && x.team === (isTeamTot(k) ? team : g[4])); return `<button type="button" class="chip ${on2 ? "" : "primary"}" data-ac="tt-${k}">${on2 ? "✓ " : "+ "}${l}</button>`; }).join("") + `</div></div>` +
       `<p class="notes" id="ac-msg" style="margin-top:10px">${n ? `Your teaser has ${n} leg${n > 1 ? "s" : ""}.` : "Your teaser is empty."}${S.msg ? " " + esc(S.msg) : ""} <button type="button" class="linkbtn" data-ac="view">View teaser</button></p>`;
     $("ac-modal").hidden = false;
     $("ac-modal").querySelector(".modal-card").focus();
@@ -1764,11 +1802,17 @@ const Saved = (() => {
     const { g, team } = act, k = b.dataset.ac;
     if (k === "save") { Saved.togglePick(pickObj(g, "spread", team)); openAct(g, team); }
     else if (k === "tease") {
-      const i = S.legs.findIndex((l) => l.team === team && l.week === g[1]);
+      const i = S.legs.findIndex((l) => l.team === team && l.week === g[1] && lt(l) === "spread");
       if (i >= 0) { S.legs.splice(i, 1); S.msg = ""; } else { S.msg = ""; addLeg(team, g[1], sideLine(g, team)); }
       openAct(g, team);
     }
     else if (k === "tover" || k === "tunder") { const v = parseFloat($("ac-tt").value); if (Number.isFinite(v)) { actTT = v; Saved.togglePick(pickObj(g, k, team, v)); } openAct(g, team); }
+    else if (k.startsWith("tt-")) {
+      const ty = k.slice(3), tm = isTeamTot(ty) ? team : g[4], i = S.legs.findIndex((l) => l.week === g[1] && lt(l) === ty && l.team === tm);
+      if (i >= 0) { S.legs.splice(i, 1); S.msg = ""; }
+      else { const v = isTeamTot(ty) ? parseFloat($("ac-tt").value) : g[7]; if (Number.isFinite(v)) { if (isTeamTot(ty)) actTT = v; addLeg(tm, g[1], v, ty); } }
+      openAct(g, team);
+    }
     else if (k === "team") { $("ac-modal").hidden = true; openTeam(team); }
     else if (k === "view") { $("ac-modal").hidden = true; S.mode = "tease"; S.week = g[1]; render(); }
   });
@@ -1780,6 +1824,7 @@ const Saved = (() => {
   function teamRows(team) {
     const out = [];
     for (const r of SCH) {
+      if (r[0] < recentMin()) continue;
       if (r[3] !== team && r[4] !== team) continue;
       const home = r[4] === team, done = r[5] !== null && r[6] !== null && r[7] !== null;
       out.push({ season: r[0], week: r[1], opp: home ? r[3] : r[4], home, line: home ? -r[6] : r[6], total: r[7], pf: home ? r[9] : r[8], pa: home ? r[8] : r[9], done, date: r[2] });
@@ -1811,15 +1856,15 @@ const Saved = (() => {
   };
   function openTeam(team) {
     tmTeam = team;
-    const all = teamRows(team).filter((x) => x.season >= (isC() ? FIRSTY : 2023)), done = all.filter((x) => x.done);
+    const all = teamRows(team).filter((x) => x.season >= TRENDY()), done = all.filter((x) => x.done);
     const win = (rows) => tally(rows);
     const rec = (t) => !t.n ? "–" : `${t.c}-${t.m}${t.cp ? "-" + t.cp : ""} <span class="sub">${pct(t.c / (t.c + t.m || 1))}</span>`;
     const ou = (t) => !t.n ? "–" : `${t.o}-${t.u}${t.op ? "-" + t.op : ""} <span class="sub">${pct(t.o / (t.o + t.u || 1))}</span>`;
     const f1 = (v) => (v === null ? "–" : v.toFixed(1));
-    const ws = [["This season", done.filter((x) => x.season === SEASON)], ["Last 5", done.slice(-5)], ["Last 10", done.slice(-10)], ["Last season", done.filter((x) => x.season === SEASON - 1)], [`Since ${isC() ? FIRSTY : 2023}`, done],
+    const ws = [["This season", done.filter((x) => x.season === SEASON)], ["Last 5", done.slice(-5)], ["Last 10", done.slice(-10)], ["Last season", done.filter((x) => x.season === SEASON - 1)], [`Since ${TRENDY()}`, done],
       ["Home", done.filter((x) => x.home)], ["Away", done.filter((x) => !x.home)], ["As favorite", done.filter((x) => x.line < 0)], ["As underdog", done.filter((x) => x.line > 0)]];
     const nx = all.find((x) => !x.done && x.season === SEASON);
-    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${tp(team)} · ${isC() ? "" : "stats, then "}the spread and total since ${isC() ? FIRSTY : 2023} (pushes counted separately)</p>` + tsBlock(team) +
+    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${tp(team)} · ${isC() ? "" : "stats, then "}the spread and total since ${TRENDY()} (pushes counted separately)</p>` + tsBlock(team) +
       (nx ? `<p class="notes" style="margin:6px 0">Next: ${nx.home ? "vs" : "at"} ${esc(nx.opp)}, week ${nx.week}, spread ${spr(nx.line)}, total ${nx.total}. <button type="button" class="mini" data-h2h="${team}|${nx.opp}">Head to head vs ${esc(nx.opp)}</button></p>` : "") +
       `<div class="tablewrap"><table><thead><tr><th>Window</th><th class="num fl">Games</th><th class="num">Spread (W-L)</th><th class="num">Total (O-U)</th><th class="num fl">Pts for</th><th class="num fl">Pts against</th><th class="num fl">Avg total</th></tr></thead><tbody>` +
       ws.map(([l, r]) => { const t = win(r); return `<tr><td>${l}${t.n ? `<span class="sub" style="display:block;margin:0">${t.n} games</span>` : ""}</td><td class="num fl">${t.n}</td><td class="num">${rec(t)}</td><td class="num">${ou(t)}</td><td class="num fl">${f1(t.pf)}</td><td class="num fl">${f1(t.pa)}</td><td class="num fl">${f1(t.tt)}</td></tr>`; }).join("") + `</tbody></table></div>` +
@@ -1890,7 +1935,7 @@ const Saved = (() => {
     $("z-notes").textContent = isC() ? NOTE_Z.replace("since 2015", "since " + FIRSTY) + " College history is shorter than the NFL's, so those percentages are rougher." : NOTE_Z;
     $("z-head").textContent = rows.length ? `Week ${S.week} · every team, with its line moved ${S.pts} points. Green means the history clears what your odds need.` : "No lines yet for this week. Pick another week.";
     $("z-table").innerHTML = `<thead><tr><th>Team</th><th class="num">Line</th><th class="num">Teased</th><th class="gm">Crosses</th><th class="num"><span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span></th><th class="num fl">Team last 10</th><th></th></tr></thead><tbody>` + rows.map((r) => {
-      const inSlip = S.legs.some((l) => l.team === r.team && l.week === S.week);
+      const inSlip = S.legs.some((l) => l.team === r.team && l.week === S.week && lt(l) === "spread");
       return `<tr class="${inSlip ? "mine" : ""}"><td><strong>${tp(r.team)}</strong><span class="sub">${r.home ? "vs" : "at"} ${tp(r.opp)}</span>${resultCell(r.res, r.line, S.pts) ? `<span class="sub">${resultCell(r.res, r.line, S.pts)}</span>` : ""}</td>` +
         `<td class="num">${lineIn(r.k, r.line, "Line for " + r.team)}</td><td class="num"><strong>${sl(r.line + S.pts)}</strong></td><td class="gm">${crosses(r.line, S.pts)}</td>` +
         `<td class="num"${covTint(r.st.cover, need)}><strong>${pct(r.st.cover)}</strong><span class="sub">${r.st.n} games${r.st.width ? ", lines within " + r.st.width : ""}</span></td>` +
@@ -1899,20 +1944,20 @@ const Saved = (() => {
 
     // slip
     $("z-stake").value = S.stake;
-    const legs = S.legs.map((l) => ({ ...l, st: stat(l.line, S.pts) }));
+    const legs = S.legs.map((l) => ({ ...l, st: legStat(l, S.pts) }));
     const probs = legs.map((l) => l.st.cover), allp = probs.reduce((a, b) => a * b, 1);
     const odds = oddsFor(Math.max(n, 2), S.pts), beAll = odds === null ? null : 1 / (1 + oddsProfit(odds));
     const ev = odds === null || !n ? null : allp * oddsProfit(odds) * S.stake - (1 - allp) * S.stake;
     const playedAll = n && legs.every((l) => l.res !== null);
-    const miss = legs.filter((l) => l.res !== null && teaseResult(l.res, l.line, S.pts) < 0).length, pushed = legs.filter((l) => l.res !== null && teaseResult(l.res, l.line, S.pts) === 0).length;
+    const miss = legs.filter((l) => l.res !== null && legWin(l, S.pts, l.res) < 0).length, pushed = legs.filter((l) => l.res !== null && legWin(l, S.pts, l.res) === 0).length;
     $("z-sum").innerHTML = `<div class="stat ${n >= 2 ? "hi" : ""}"><span class="k">Legs</span><span class="v">${n}</span></div>` +
       `<div class="stat"><span class="k">Odds</span><span class="v">${odds === null ? "–" : (odds > 0 ? "+" : "") + odds}</span><span class="n">${n >= 2 ? "for " + n + " legs, " + S.pts + " pts" : "add 2+ legs"}</span></div>` +
       `<div class="stat hi"><span class="k">All legs cover</span><span class="v">${n ? pct(allp) : "–"}</span><span class="n">from history, legs treated as independent</span></div>` +
       `<div class="stat"><span class="k">Needs</span><span class="v">${beAll === null ? "–" : pct(beAll)}</span><span class="n">${beAll === null ? "type your odds below" : "to break even"}</span></div>` +
       `<div class="stat ${ev === null ? "" : ev >= 0 ? "ok" : "neg"}"><span class="k">Expected</span><span class="v">${ev === null ? "–" : money(ev)}</span><span class="n">average result on $${S.stake}</span></div>`;
     $("z-legs").innerHTML = n ? `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Leg</th><th class="num">Line</th><th class="num">Teased</th><th class="gm">Crosses</th><th class="num"><span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span></th><th class="num fl">Team last 10</th><th></th></tr></thead><tbody>` + legs.map((l, i) =>
-      `<tr><td><strong>${tp(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${tp(l.opp)} · wk ${l.week}</span>${resultCell(l.res, l.line, S.pts) ? `<span class="sub">${resultCell(l.res, l.line, S.pts)}</span>` : ""}</td><td class="num">${lineIn("leg" + i, l.line, "Line for " + l.team)}</td><td class="num"><strong class="${l.line + S.pts > 0 ? "pos" : l.line + S.pts < 0 ? "neg" : ""}">${sl(l.line + S.pts)}</strong></td><td class="gm">${crosses(l.line, S.pts)}</td>` +
-      `<td class="num"${covTint(l.st.cover, needFor(n, S.pts))}><strong>${pct(l.st.cover)}</strong><span class="sub">${l.st.n} games</span></td><td class="num fl">${recent(l.team, S.pts)}</td><td><button type="button" class="mini" data-rmleg="${i}" aria-label="Remove ${esc(l.team)}"><span class="long">Remove</span><span class="short">✕</span></button></td></tr>`).join("") + `</tbody></table></div>` +
+      `<tr><td>${legName(l)}${legRes(l) ? `<span class="sub">${legRes(l)}</span>` : ""}</td><td class="num">${lineIn("leg" + i, l.line, "Line for " + l.team)}</td><td class="num"><strong class="${lt(l) === "spread" ? (l.line + S.pts > 0 ? "pos" : l.line + S.pts < 0 ? "neg" : "") : "pos"}">${lt(l) === "spread" ? sl(l.line + S.pts) : r1(teasedOf(l, S.pts))}</strong></td><td class="gm">${lt(l) === "spread" ? crosses(l.line, S.pts) : '<span class="sub" style="margin:0">–</span>'}</td>` +
+      `<td class="num"${covTint(l.st.cover, needFor(n, S.pts))}><strong>${pct(l.st.cover)}</strong><span class="sub">${l.st.n} games</span></td><td class="num fl">${lt(l) === "spread" ? recent(l.team, S.pts) : "–"}</td><td><button type="button" class="mini" data-rmleg="${i}" aria-label="Remove ${esc(l.team)}"><span class="long">Remove</span><span class="short">✕</span></button></td></tr>`).join("") + `</tbody></table></div>` +
       (playedAll ? `<p class="${miss ? "warn" : "notes"}" style="margin-top:8px">${miss ? `This slip lost: ${miss} leg${miss > 1 ? "s" : ""} missed.` : pushed ? `No leg missed, but ${pushed} pushed (the book would shrink the teaser).` : "Every leg covered: this slip won."}</p>` : "")
       : `<p class="notes">No legs yet. Press + Add on a team below.</p>`;
     $("z-msg").textContent = S.msg || "";
@@ -1920,7 +1965,7 @@ const Saved = (() => {
     // compare 6 / 6.5 / 7
     $("z-cmp").innerHTML = n >= 2 ? `<h3 style="margin:18px 0 6px;font-size:14px">Compare the point options for these ${n} legs</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Points</th><th class="num fl">Avg leg</th><th class="num">All hit</th><th class="num">Odds</th><th class="num">Needs</th><th class="num">Expected</th></tr></thead><tbody>` +
       [6, 6.5, 7].map((p) => {
-        const ps = S.legs.map((l) => stat(l.line, p)), cs = ps.map((x) => x.cover), ap = cs.reduce((a, b) => a * b, 1), avg = cs.reduce((a, b) => a + b, 0) / cs.length;
+        const ps = S.legs.map((l) => legStat(l, p)), cs = ps.map((x) => x.cover), ap = cs.reduce((a, b) => a * b, 1), avg = cs.reduce((a, b) => a + b, 0) / cs.length;
         const o = oddsFor(n, p), be = o === null ? null : 1 / (1 + oddsProfit(o)), e = o === null ? null : ap * oddsProfit(o) * S.stake - (1 - ap) * S.stake;
         return `<tr class="${p === S.pts ? "mine" : ""}"><td><strong>${p}</strong></td><td class="num fl">${pct(avg)}</td><td class="num">${pct(ap)}</td><td class="num"><input class="proj-in" type="number" step="5" inputmode="numeric" data-odds="${p}" value="${o === null ? "" : o}" placeholder="+400" aria-label="Odds for ${p} points"></td><td class="num">${be === null ? "–" : pct(be)}</td><td class="num"${e === null ? "" : ` style="color:var(${e >= 0 ? "--accent" : "--bad"})"`}>${e === null ? "–" : money(e)}</td></tr>`;
       }).join("") + `</tbody></table></div><p class="notes" style="margin-top:6px">Type your book's odds in the Odds boxes (for ${n} legs at each point option). Expected is the average result on $${S.stake}. Ones you haven't typed in stay blank. Pushes count as losses here, so a leg that often lands exactly on the number looks a little worse than it is.</p>` : "";
@@ -1937,7 +1982,7 @@ const Saved = (() => {
     const n = S.legs.length;
     if (n < 2) return;
     const nm = $("z-name").value.trim() || `Week ${S.legs[0].week} · ${n} legs, ${S.pts} pts`;
-    Saved.add("teasers", { name: nm, lg: LG, season: SEASON, pts: S.pts, stake: S.stake, odds: oddsFor(n, S.pts), legs: S.legs.map((l) => ({ team: l.team, opp: l.opp, home: l.home, week: l.week, line: l.line })) });
+    Saved.add("teasers", { name: nm, lg: LG, season: SEASON, pts: S.pts, stake: S.stake, odds: oddsFor(n, S.pts), legs: S.legs.map((l) => ({ team: l.team, opp: l.opp, home: l.home, week: l.week, type: lt(l), line: l.line })) });
     $("z-name").value = "";
     S.msg = `Saved “${nm}”. Open Saved at the top to see it, and whether it hit once the games are played.`;
     render();
@@ -1945,7 +1990,7 @@ const Saved = (() => {
   RE.loadTeaser = (t) => {
     if ((t.lg || "nfl") !== LG && RE.switchLeague) RE.switchLeague(t.lg || "nfl");
     S.pts = t.pts; S.stake = t.stake || 25; S.legs = []; S.msg = "";
-    for (const l of t.legs) { S.ov[key(l.team, l.week)] = l.line; addLeg(l.team, l.week, l.line); }
+    for (const l of t.legs) { if (!l.type || l.type === "spread") S.ov[key(l.team, l.week)] = l.line; addLeg(l.team, l.week, l.line, l.type); }
     if (t.odds !== null && t.odds !== undefined) S.odds[Math.max(t.legs.length, 2) + "|" + t.pts] = t.odds;
     if (weeks.includes(t.legs[0].week)) S.week = t.legs[0].week;
     S.msg = `Loaded “${t.name}”.`;
@@ -1953,9 +1998,9 @@ const Saved = (() => {
     render();
   };
   $("z-table").addEventListener("click", (e) => { const b = e.target.closest("button[data-add]"); if (b) { addLeg(b.dataset.add, S.week, S.ov[key(b.dataset.add, S.week)]); render(); } });
-  $("z-table").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value); const k = i.dataset.line; if (Number.isFinite(v)) { S.ov[k] = v; const [t, w] = k.split("|"); S.legs.forEach((l) => { if (l.team === t && l.week === +w) l.line = v; }); } else delete S.ov[k]; render(); });
+  $("z-table").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value); const k = i.dataset.line; if (Number.isFinite(v)) { S.ov[k] = v; const [t, w] = k.split("|"); S.legs.forEach((l) => { if (l.team === t && l.week === +w && lt(l) === "spread") l.line = v; }); } else delete S.ov[k]; render(); });
   $("z-legs").addEventListener("click", (e) => { const b = e.target.closest("button[data-rmleg]"); if (b) { S.legs.splice(+b.dataset.rmleg, 1); S.msg = ""; render(); } });
-  $("z-legs").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value), idx = +i.dataset.line.replace("leg", ""); if (Number.isFinite(v) && S.legs[idx]) { S.legs[idx].line = v; S.ov[key(S.legs[idx].team, S.legs[idx].week)] = v; } render(); });
+  $("z-legs").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value), idx = +i.dataset.line.replace("leg", ""); if (Number.isFinite(v) && S.legs[idx]) { S.legs[idx].line = v; if (lt(S.legs[idx]) === "spread") S.ov[key(S.legs[idx].team, S.legs[idx].week)] = v; } render(); });
   $("z-cmp").addEventListener("change", (e) => { const i = e.target.closest("input[data-odds]"); if (!i) return; const v = parseInt(i.value, 10), k = S.legs.length + "|" + i.dataset.odds; if (Number.isFinite(v) && Math.abs(v) >= 100) S.odds[k] = v; else delete S.odds[k]; render(); });
   render();
 })();
@@ -2468,7 +2513,8 @@ const Saved = (() => {
   function legResult(t, l) {
     const g = schOf(t).find((r) => r[0] === (t.season || D.season) && r[1] === l.week && (r[3] === l.team || r[4] === l.team));
     if (!g || g[5] === null) return null;
-    return teaseResult(g[4] === l.team ? g[5] : -g[5], l.line, t.pts);
+    const ty = l.type || "spread", res = ty === "spread" ? (g[4] === l.team ? g[5] : -g[5]) : ty === "tover" || ty === "tunder" ? (g[4] === l.team ? g[9] : g[8]) : g[8] + g[9];
+    return ty === "spread" ? res + l.line + t.pts : ty === "tover" || ty === "over" ? res - l.line + t.pts : l.line + t.pts - res;
   }
   function teaserStatus(t) {
     const rs = t.legs.map((l) => legResult(t, l)), done = rs.filter((x) => x !== null);
@@ -2490,7 +2536,10 @@ const Saved = (() => {
         `<p style="margin:6px 0 0"><span class="res ${st.cls}">${esc(st.text)}</span></p>` +
         `<ul class="svlegs">` + t.legs.map((l, i) => {
           const x = st.rs[i];
-          return `<li>${tp(l.team, t.lg)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · wk ${l.week}</span> <span><span class="${l.line > 0 ? "pos" : l.line < 0 ? "neg" : ""}">${l.line > 0 ? "+" : l.line < 0 ? "−" : ""}${Math.abs(l.line)}</span> → <strong class="${l.line + t.pts > 0 ? "pos" : l.line + t.pts < 0 ? "neg" : ""}">${l.line + t.pts > 0 ? "+" : l.line + t.pts < 0 ? "−" : ""}${Math.abs(Math.round((l.line + t.pts) * 10) / 10)}</strong></span>` +
+          const ty = l.type || "spread", ov = ty === "tover" || ty === "over", ts = Math.round((ty === "spread" ? l.line + t.pts : ov ? l.line - t.pts : l.line + t.pts) * 10) / 10;
+          const lbl = ty === "spread" ? `${tp(l.team, t.lg)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · wk ${l.week}</span>` : ty === "over" || ty === "under" ? `<strong>Game ${ov ? "over" : "under"}</strong> <span class="sub" style="margin:0">${l.opp} at ${l.team} · wk ${l.week}</span>` : `${tp(l.team, t.lg)} <span class="sub" style="margin:0">${ov ? "over" : "under"} team total · wk ${l.week}</span>`;
+          const nums = ty === "spread" ? `<span class="${l.line > 0 ? "pos" : l.line < 0 ? "neg" : ""}">${l.line > 0 ? "+" : l.line < 0 ? "−" : ""}${Math.abs(l.line)}</span> → <strong class="${l.line + t.pts > 0 ? "pos" : l.line + t.pts < 0 ? "neg" : ""}">${l.line + t.pts > 0 ? "+" : l.line + t.pts < 0 ? "−" : ""}${Math.abs(ts)}</strong>` : `${l.line} → <strong class="pos">${ts}</strong>`;
+          return `<li>${lbl} <span>${nums}</span>` +
             (x === null ? ` <span class="sub" style="margin:0">pending</span>` : x > 0 ? ` <span class="res ok">Covered by ${Math.round(x * 10) / 10}</span>` : x === 0 ? ` <span class="res">Push</span>` : ` <span class="res no">Missed by ${Math.round(-x * 10) / 10}</span>`) + `</li>`;
         }).join("") + `</ul>` +
         `<div class="svedit"><button type="button" class="chip primary" data-loadt="${t.id}" ${RE.loadTeaser && (t.lg === "cfb" ? COL && t.season === COL.season : (t.season || D.season) === D.season) ? "" : "disabled"}>Load into Teasers</button><button type="button" class="mini" data-del="teasers|${t.id}">Delete</button></div></div>`;
