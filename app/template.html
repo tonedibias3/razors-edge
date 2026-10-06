@@ -1835,9 +1835,9 @@ const Saved = (() => {
     else { const opp = type === "over" ? "under" : "over"; warn = !picked(g, type) && picked(g, opp) ? `Heads up: you've saved both the Over and the Under on ${g[3]} at ${g[4]}, so one of them has to lose.` : ""; Saved.togglePick(pickObj(g, type, team)); }
   });
   // tap a spread: save the pick, add it to the teaser, or look at the team
-  let act = null, actTT = null;
+  let act = null, actTT = null, actMsg = "";
   function openAct(g, team) {
-    if (!act || act.team !== team || act.g !== g) actTT = null;
+    if (!act || act.team !== team || act.g !== g) { actTT = null; actMsg = ""; }
     act = { g, team, tt: team + g[1] };
     const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1] && lt(l) === "spread"), on = picked(g, "spread", team);
     const n = S.legs.length, imp = impOf(g, team), ttv = actTT !== null && act.tt === team + g[1] ? actTT : imp === null ? 0 : Math.round(imp * 2) / 2;
@@ -1848,7 +1848,9 @@ const Saved = (() => {
       `<button type="button" class="chip" data-ac="team">${esc(team)} trends and stats</button></div>` +
       `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">Line moved? Type your book's numbers${lineEdited(g) ? " (edited)" : ""}</span><div class="chips"><label class="sub" style="margin:0">${esc(team)} spread <input class="proj-in" id="ac-sp" type="number" step="0.5" inputmode="decimal" value="${line === null ? "" : line}" style="width:80px"></label>` +
         `<label class="sub" style="margin:0">Game total <input class="proj-in" id="ac-gt" type="number" step="0.5" inputmode="decimal" value="${g[7] === null ? "" : g[7]}" style="width:80px"></label>` +
-        (lineEdited(g) ? `<button type="button" class="chip" data-ac="lreset">Back to ${esc(team)} ${spr(g.orig[0] === null ? null : g[4] === team ? -g.orig[0] : g.orig[0])}</button>` : "") + `</div><p class="notes" style="margin:4px 0 0">Changes the line everywhere (Lines, Teasers, team total, tease buttons) on this device.</p></div>` +
+        `<button type="button" class="chip primary" data-ac="lupdate">Update line</button></div>` +
+        `<p class="notes" id="ac-imp" style="margin:6px 0 0">${actMsg || ""}</p>` +
+        (lineEdited(g) ? `<button type="button" class="chip" data-ac="lreset" style="margin-top:8px">Reset to original line</button>` : "") + `<p class="notes" style="margin:4px 0 0">Changes the line everywhere (Lines, Teasers, team totals, tease buttons) on this device.</p></div>` +
       (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">${esc(team)} team total (type your book's number)</span><div class="chips"><input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:90px">` +
         `<button type="button" class="chip" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over</button><button type="button" class="chip" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under</button></div><p class="notes" style="margin:4px 0 0">Starts at the expected score (${imp}). Change it to your book's line.</p></div>`) +
       `<div class="setrow" style="margin:12px 0 4px"><span class="lbl">Tease the game total (${S.pts} pts)</span><div class="chips">` +
@@ -1875,17 +1877,30 @@ const Saved = (() => {
       else { const v = isTeamTot(ty) ? parseFloat($("ac-tt").value) : g[7]; if (Number.isFinite(v)) { if (isTeamTot(ty)) actTT = v; addLeg(tm, g[1], v, ty); } }
       openAct(g, team);
     }
-    else if (k === "lreset") { resetGameLine(g); render(); openAct(g, team); }
+    else if (k === "lreset") { resetGameLine(g); actMsg = "✓ Back to the original line."; render(); openAct(g, team); }
+    else if (k === "lupdate") applyActLine();
     else if (k === "team") { $("ac-modal").hidden = true; openTeam(team); }
     else if (k === "view") { $("ac-modal").hidden = true; S.mode = "tease"; S.week = g[1]; render(); }
   });
-  $("ac-modal").addEventListener("change", (e) => {
+  const impText = (g, sp, tot) => {
+    if (!Number.isFinite(sp) || !Number.isFinite(tot)) return "";
+    const tm = act.team, home = g[4] === tm;
+    const my = (tot - sp) / 2, oth = (tot + sp) / 2, opp = home ? g[3] : g[4];
+    return `Implied totals: ${esc(tm)} ${my}, ${esc(opp)} ${oth}`;
+  };
+  function applyActLine() {
+    const { g, team } = act, sp = parseFloat($("ac-sp").value), tot = parseFloat($("ac-gt").value);
+    if (!Number.isFinite(sp) && !Number.isFinite(tot)) { actMsg = "Type a spread or a total first."; openAct(g, team); return; }
+    setGameLine(g, Number.isFinite(sp) ? (g[4] === team ? -sp : sp) : undefined, Number.isFinite(tot) ? tot : undefined);
+    actTT = null; render();
+    const now = `${esc(team)} ${spr(sideLine(g, team))}, total ${g[7]}. ${impText(g, sideLine(g, team), g[7])}`;
+    actMsg = "✓ Updated: " + now; openAct(g, team);
+  }
+  $("ac-modal").addEventListener("input", (e) => {
     if (!act || !(e.target.id === "ac-sp" || e.target.id === "ac-gt")) return;
-    const { g, team } = act, v = parseFloat(e.target.value);
-    if (!Number.isFinite(v)) { openAct(g, team); return; }
-    if (e.target.id === "ac-sp") setGameLine(g, g[4] === team ? -v : v, undefined); else setGameLine(g, undefined, v);
-    actTT = null; render(); openAct(g, team);
+    const el = $("ac-imp"); if (el) el.textContent = "New line not saved yet. Press Update line. " + impText(act.g, parseFloat($("ac-sp").value), parseFloat($("ac-gt").value));
   });
+  $("ac-modal").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.target.id === "ac-sp" || e.target.id === "ac-gt")) { e.preventDefault(); applyActLine(); } });
   $("ac-close").addEventListener("click", () => { $("ac-modal").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("ac-modal").hidden) $("ac-modal").hidden = true; });
   Saved.on(() => { if (S.mode === "lines") renderLines(); });
