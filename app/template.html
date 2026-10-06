@@ -631,6 +631,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
       <div class="chips" id="l-conf" role="group" aria-label="Which games" style="margin:0 0 8px" hidden></div>
       <div class="chips" id="l-dog" role="group" aria-label="Favorites and underdogs" style="margin:0 0 8px"></div>
       <div class="chips" id="l-filter" role="group" aria-label="Filter games" style="margin:0 0 8px"></div>
+      <div class="chips" id="l-sort" role="group" aria-label="Sort games" style="margin:0 0 8px"></div>
       <p class="tiles-head" id="l-head" style="margin:0"></p>
       <section class="panel" aria-label="Spreads"><div class="tablewrap" style="margin-top:0"><table id="l-table"></table></div></section>
       <p class="notes" id="l-notes">Road team on the left, home team on the right. The number is each team's spread (minus means favored). The small percent under each spread (and the shading) is how often teams with a similar spread since 2015 covered it straight up: green is above 50%, red is below, and it stays close to even because books set these lines to be about fair. Lines come from one free data file, so they can differ a little from your book. Type over a line on the Teasers view to match yours.</p>
@@ -1641,7 +1642,7 @@ const Saved = (() => {
   const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
   const wkInfo = (sch, season) => { const w = [...new Set(sch.filter((r) => r[0] === season && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b); return { w, n: w.find((x) => sch.filter((r) => r[0] === season && r[1] === x).every((r) => r[5] === null)) || w[w.length - 1] }; };
   let { w: weeks, n: nextWeek } = wkInfo(SCH, SEASON);
-  const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", dir: 1, legs: [], odds: {}, ov: {}, msg: "" };
+  const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", dir: 1, ls: "time", ld: 1, legs: [], odds: {}, ov: {}, msg: "" };
   const STORE = {};
   const NOTE_L = $("l-notes").textContent, NOTE_Z = $("z-notes").textContent;
   function setLeague(lg) {
@@ -1787,6 +1788,12 @@ const Saved = (() => {
     const FILTERS = [["all", "All games", () => true], ["over", "Overs hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 >= 0.6], ["under", "Unders hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 <= 0.4], ["ats", "Teams covering", (g) => [g[3], g[4]].some((t) => { const x = trend(t); return x.n >= 5 && x.c / (x.n - x.cp || 1) >= 0.7; })]];
     $("l-filter").innerHTML = FILTERS.map(([k, l, f]) => `<button type="button" class="chip" data-lf="${k}" aria-pressed="${S.lf === k}">${l} (${allG.filter(f).length})</button>`).join("");
     const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
+    const hiTT = (g) => Math.max(g[7] + g[6], g[7] - g[6]) / 2;
+    const LSORT = [["time", "Kickoff time"], ["total", "Game total"], ["tt", "Team total"], ["spread", "Spread size"]];
+    const lsKey = { total: (g) => g[7] || 0, tt: (g) => hiTT(g) || 0, spread: (g) => Math.abs(g[6]) || 0 }[S.ls];
+    if (lsKey) games.sort((a, b) => (lsKey(b) - lsKey(a)) * S.ld);
+    const lsArrow = (k) => (S.ls === k ? (S.ld > 0 ? " ↓" : " ↑") : "");
+    $("l-sort").innerHTML = `<span class="sub" style="margin:0 4px 0 0">Sort by</span>` + LSORT.map(([k, l]) => `<button type="button" class="chip" data-ls="${k}" aria-pressed="${S.ls === k}" title="${k === "time" ? "" : "Click again to flip high/low"}">${l}${k === "time" ? "" : S.ls === k ? (S.ld > 0 ? (k === "spread" ? " · biggest first" : " · highest first") : (k === "spread" ? " · smallest first" : " · lowest first")) : ""}</button>`).join("");
     $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>${recOf(t).n ? `<span class="rec" title="${isC() ? "Overall record (conference record)" : "Record this season"}">${recOf(t).txt}${isC() ? ` (${recOf(t).conf})` : ""}</span>` : ""}`;
@@ -1794,17 +1801,20 @@ const Saved = (() => {
       const line = sideLine(g, team), st = stat(line, 0), res = g[5] === null ? null : g[4] === team ? g[5] : -g[5], on = picked(g, "spread", team);
       return `<td class="num"${covBg(st.cover)}><button type="button" class="cellbtn" data-pick="${esc(g[3])}|${esc(g[4])}|spread|${esc(team)}" aria-pressed="${on}" aria-label="${on ? "Remove" : "Save"} ${esc(team)} ${spr(line)}"><strong>${spr(line)}</strong></button>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>`}</td>`;
     };
-    let html = `<thead><tr><th>Road</th><th class="num">Spread</th><th class="num">Spread</th><th>Home</th><th class="num">Total</th></tr></thead><tbody>`, last = "";
+    const lsh = (k, label) => `<button type="button" class="linkbtn" data-ls="${k}" aria-pressed="${S.ls === k}" title="Click to sort, click again to flip">${label}${lsArrow(k)}</button>`;
+    let html = `<thead><tr><th>Road</th><th class="num">${lsh("spread", "Spread")}</th><th class="num">${lsh("spread", "Spread")}</th><th>Home</th><th class="num">${lsh("total", "Total")}</th></tr></thead><tbody>`, last = "";
     for (const g of games) {
       const gk = g[2] + "|" + (g[10] || "");
-      if (gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
+      if (S.ls === "time" && gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
       html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? g[8] + " final" : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? g[9] + " final" : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
-        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}<span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
+        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
   }
+  const lsClick = (e) => { const b = e.target.closest("button[data-ls]"); if (!b) return; const k = b.dataset.ls; if (k === "time") { S.ls = "time"; S.ld = 1; } else if (S.ls === k) S.ld = -S.ld; else { S.ls = k; S.ld = 1; } renderLines(); };
+  $("l-sort").addEventListener("click", lsClick); $("l-table").addEventListener("click", lsClick);
   $("l-dog").addEventListener("click", (e) => { const b = e.target.closest("button[data-df]"); if (b) { S.df = b.dataset.df; renderLines(); } });
   $("l-dog").addEventListener("change", (e) => { if (e.target.id === "l-db") { S.db = e.target.value; renderLines(); } });
   $("l-conf").addEventListener("click", (e) => { const b = e.target.closest("button[data-cf]"); if (b) { S.cf = b.dataset.cf; renderLines(); } });
