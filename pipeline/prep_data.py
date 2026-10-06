@@ -107,7 +107,7 @@ sg = pd.read_csv("schedule.csv")
 sg = sg[(sg["season"] >= 2015) & (sg["game_type"] == "REG")].sort_values(["season", "week", "gameday"])
 def _n(v):
     return None if pd.isna(v) else float(v)
-sched_rows = [[int(r.season), int(r.week), str(r.gameday), r.away_team, r.home_team, _n(r.result), _n(r.spread_line), _n(r.total_line), _n(r.away_score), _n(r.home_score)] for r in sg.itertuples()]
+sched_rows = [[int(r.season), int(r.week), str(r.gameday), r.away_team, r.home_team, _n(r.result), _n(r.spread_line), _n(r.total_line), _n(r.away_score), _n(r.home_score), ("" if pd.isna(r.gametime) else str(r.gametime))] for r in sg.itertuples()]
 
 out = {
     "season": int(df["season"].max()),
