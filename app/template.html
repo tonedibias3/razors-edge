@@ -439,16 +439,16 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
 
   <div class="chips" id="lg-sw" role="group" aria-label="League" style="margin:0 0 8px" hidden></div>
   <nav class="tabs" role="tablist" aria-label="Views">
-    <button type="button" role="tab" id="tab-players" class="chip" aria-selected="true" aria-controls="view-players">Players</button>
+    <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="true" aria-controls="view-tease">Lines &amp; teasers</button>
+    <button type="button" role="tab" id="tab-teams" class="chip" aria-selected="false" aria-controls="view-teams">Teams</button>
+    <button type="button" role="tab" id="tab-players" class="chip" aria-selected="false" aria-controls="view-players">Players</button>
     <button type="button" role="tab" id="tab-def" class="chip" aria-selected="false" aria-controls="view-def">Defenses</button>
     <button type="button" role="tab" id="tab-top" class="chip" aria-selected="false" aria-controls="view-top">Top hit rates</button>
-    <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="false" aria-controls="view-tease">Lines &amp; teasers</button>
-    <button type="button" role="tab" id="tab-teams" class="chip" aria-selected="false" aria-controls="view-teams">Teams</button>
     <button type="button" role="tab" id="tab-proj" class="chip" aria-selected="false" aria-controls="view-proj">DFS</button>
     <button type="button" role="tab" id="tab-bets" class="chip" aria-selected="false" aria-controls="view-bets">Bets</button>
   </nav>
 
-  <div class="view" id="view-players">
+  <div class="view" id="view-players" hidden>
   <section class="controls" aria-label="Choose a player, a stat and a line">
     <div class="field">
       <label class="lbl" for="q">Player</label>
@@ -633,7 +633,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <p class="notes" id="t-notes">Estimate uses the same rule as the Matchup section: his rate in this window plus how far his next opponent sits from the league for players in his role over the last 3 seasons. Short windows can push it toward 100%, so read a high number as consistent, not certain. Only players with a game this season are listed, and a player needs at least as many games as the window. Click a name to open him on the Players tab.</p>
   </div>
 
-  <div class="view" id="view-tease" role="tabpanel" aria-labelledby="tab-tease" hidden>
+  <div class="view" id="view-tease" role="tabpanel" aria-labelledby="tab-tease">
     <div class="chips" id="z-mode" role="group" aria-label="Show"></div>
     <div id="z-lines" style="margin-top:12px">
       <div class="controls pc"><div class="field"><label class="lbl" for="l-week">Week</label><select id="l-week"></select></div></div>
