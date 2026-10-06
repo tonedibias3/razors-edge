@@ -217,6 +217,7 @@ tr:last-child td { border-bottom: 0; }
 #b-root .svc { background: var(--surface); }
 #b-root .stat .v { font-size: 22px; }
 #b-root .svedit label { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.rec { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 5px; vertical-align: 1px; white-space: nowrap; }
 .rk { font-size: 11px; font-weight: 700; opacity: .7; margin-right: 3px; }
 .tm { display: inline-block; min-width: 34px; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .02em; line-height: 17px; padding: 0 6px; border-radius: 4px; background: var(--hover); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(128,128,128,.35); vertical-align: 1px; }
 .lock { border: 0; background: none; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 6px 0 0; opacity: .35; vertical-align: -1px; }
@@ -1758,7 +1759,7 @@ const Saved = (() => {
     const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
     $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
-    const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>`;
+    const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>${recOf(t).n ? `<span class="rec" title="Record this season">${recOf(t).txt}</span>` : ""}`;
     const cell = (g, team) => {
       const line = sideLine(g, team), st = stat(line, 0), res = g[5] === null ? null : g[4] === team ? g[5] : -g[5], on = picked(g, "spread", team);
       return `<td class="num"${covBg(st.cover)}><button type="button" class="cellbtn" data-pick="${esc(g[3])}|${esc(g[4])}|spread|${esc(team)}" aria-pressed="${on}" aria-label="${on ? "Remove" : "Save"} ${esc(team)} ${spr(line)}"><strong>${spr(line)}</strong></button>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>`}</td>`;
@@ -1839,6 +1840,16 @@ const Saved = (() => {
   Saved.on(() => { if (S.mode === "lines") renderLines(); });
 
   // ---- team trends pop-up: how a team has done against the spread and the total ----
+  // straight-up record this season, from finished games in the schedule (college counts FBS opponents only)
+  function recOf(team) {
+    let w = 0, l = 0, t = 0, hw = 0, hl = 0, aw = 0, al = 0;
+    for (const r of SCH) {
+      if (r[0] !== SEASON || r[5] === null || (r[3] !== team && r[4] !== team)) continue;
+      const home = r[4] === team, m = home ? r[5] : -r[5];
+      if (m > 0) { w++; if (home) hw++; else aw++; } else if (m < 0) { l++; if (home) hl++; else al++; } else t++;
+    }
+    return { w, l, t, n: w + l + t, txt: `${w}-${l}${t ? "-" + t : ""}`, home: `${hw}-${hl}`, away: `${aw}-${al}` };
+  }
   function teamRows(team) {
     const out = [];
     for (const r of SCH) {
@@ -1882,7 +1893,7 @@ const Saved = (() => {
     const ws = [["This season", done.filter((x) => x.season === SEASON)], ["Last 5", done.slice(-5)], ["Last 10", done.slice(-10)], ["Last season", done.filter((x) => x.season === SEASON - 1)], [`Since ${TRENDY()}`, done],
       ["Home", done.filter((x) => x.home)], ["Away", done.filter((x) => !x.home)], ["As favorite", done.filter((x) => x.line < 0)], ["As underdog", done.filter((x) => x.line > 0)]];
     const nx = all.find((x) => !x.done && x.season === SEASON);
-    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${tp(team)} · ${isC() ? "" : "stats, then "}the spread and total since ${TRENDY()} (pushes counted separately)</p>` + tsBlock(team) +
+    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${tp(team)}${recOf(team).n ? ` <strong>${recOf(team).txt}</strong> this season <span class="sub" style="display:inline">(home ${recOf(team).home}, away ${recOf(team).away}${isC() ? ", FBS opponents only" : ""})</span>` : ""} · ${isC() ? "" : "stats, then "}the spread and total since ${TRENDY()} (pushes counted separately)</p>` + tsBlock(team) +
       (nx ? `<p class="notes" style="margin:6px 0">Next: ${nx.home ? "vs" : "at"} ${esc(nx.opp)}, week ${nx.week}, spread ${spr(nx.line)}, total ${nx.total}. <button type="button" class="mini" data-h2h="${team}|${nx.opp}">Head to head vs ${esc(nx.opp)}</button></p>` : "") +
       `<div class="tablewrap"><table><thead><tr><th>Window</th><th class="num fl">Games</th><th class="num">Spread (W-L)</th><th class="num">Total (O-U)</th><th class="num fl">Pts for</th><th class="num fl">Pts against</th><th class="num fl">Avg total</th></tr></thead><tbody>` +
       ws.map(([l, r]) => { const t = win(r); return `<tr><td>${l}${t.n ? `<span class="sub" style="display:block;margin:0">${t.n} games</span>` : ""}</td><td class="num fl">${t.n}</td><td class="num">${rec(t)}</td><td class="num">${ou(t)}</td><td class="num fl">${f1(t.pf)}</td><td class="num fl">${f1(t.pa)}</td><td class="num fl">${f1(t.tt)}</td></tr>`; }).join("") + `</tbody></table></div>` +
