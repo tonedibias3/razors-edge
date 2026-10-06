@@ -339,7 +339,7 @@ tr.mine td { background: var(--accent-soft); }
     <button type="button" role="tab" id="tab-players" class="chip" aria-selected="true" aria-controls="view-players">Players</button>
     <button type="button" role="tab" id="tab-def" class="chip" aria-selected="false" aria-controls="view-def">Defenses</button>
     <button type="button" role="tab" id="tab-top" class="chip" aria-selected="false" aria-controls="view-top">Top hit rates</button>
-    <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="false" aria-controls="view-tease">Teasers</button>
+    <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="false" aria-controls="view-tease">Lines &amp; teasers</button>
     <button type="button" role="tab" id="tab-proj" class="chip" aria-selected="false" aria-controls="view-proj">DFS</button>
   </nav>
 
@@ -529,6 +529,14 @@ tr.mine td { background: var(--accent-soft); }
   </div>
 
   <div class="view" id="view-tease" role="tabpanel" aria-labelledby="tab-tease" hidden>
+    <div class="chips" id="z-mode" role="group" aria-label="Show"></div>
+    <div id="z-lines" style="margin-top:12px">
+      <div class="controls pc"><div class="field"><label class="lbl" for="l-week">Week</label><select id="l-week"></select></div></div>
+      <p class="tiles-head" id="l-head" style="margin:0"></p>
+      <section class="panel" aria-label="Spreads"><div class="tablewrap" style="margin-top:0"><table id="l-table"></table></div></section>
+      <p class="notes" id="l-notes">Road team on the left, home team on the right. The number is each team's spread (minus means favored). The small percent under each spread (and the shading) is how often teams with a similar spread since 2015 covered it straight up: green is above 50%, red is below, and it stays close to even because books set these lines to be about fair. Lines come from one free data file, so they can differ a little from your book. Type over a line on the Teasers view to match yours.</p>
+    </div>
+    <div id="z-tease" hidden>
     <section class="controls pc" aria-label="Teaser settings">
       <div class="field"><span class="lbl" id="z-pts-l">Teaser points</span><div class="chips" id="z-pts" role="group" aria-labelledby="z-pts-l"></div></div>
       <div class="field"><label class="lbl" for="z-stake">Stake ($)</label><input id="z-stake" type="number" inputmode="decimal" min="1" step="1" value="25"></div>
@@ -550,6 +558,7 @@ tr.mine td { background: var(--accent-soft); }
       <div class="tablewrap" style="margin-top:0"><table id="z-table"></table></div>
     </section>
     <p class="notes" id="z-notes">How to read this: a leg "covers" when the team beats its line after the teaser points are added. For each leg we look at every game since 2015 where a team had the same line, and count how often it would have covered the teased number. "Needs" is the share of legs that must win, on average, for your odds to break even. Spreads here come from one free data source (probably the closing line), so type your book's number over it. Past results do not predict a single game; this is a way to spot weak legs and compare the 6, 6.5 and 7 point options.</p>
+    </div>
   </div>
 
   <div class="view" id="view-proj" role="tabpanel" aria-labelledby="tab-proj" hidden>
@@ -1393,7 +1402,7 @@ const Saved = (() => {
   const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
   const weeks = [...new Set(D.sched.filter((r) => r[0] === SEASON && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b);
   const nextWeek = weeks.find((w) => D.sched.filter((r) => r[0] === SEASON && r[1] === w).every((r) => r[5] === null)) || weeks[weeks.length - 1];
-  const S = { pts: 6, stake: 25, week: nextWeek, sort: "cover", legs: [], odds: {}, ov: {}, msg: "" };
+  const S = { mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", legs: [], odds: {}, ov: {}, msg: "" };
   const gameOf = (team, week) => D.sched.find((r) => r[0] === SEASON && r[1] === week && (r[3] === team || r[4] === team));
   const key = (team, week) => team + "|" + week;
   function sideLine(r, team) { return r[6] === null ? null : r[4] === team ? -r[6] : r[6]; }
@@ -1426,7 +1435,25 @@ const Saved = (() => {
   }
   const lineIn = (id, v, label) => `<input class="proj-in" type="number" step="0.5" inputmode="decimal" data-line="${esc(id)}" value="${v}" aria-label="${esc(label)}">`;
 
+  const covBg = (v) => (v === null ? "" : ` style="background:color-mix(in srgb, var(${v >= 0.5 ? "--accent" : "--bad"}) ${Math.min(30, 6 + Math.round(Math.abs(v - 0.5) * 260))}%, transparent)"`);
+  const spr = (v) => (v === 0 ? "PK" : sl(v));
+  function renderLines() {
+    $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " (upcoming)" : w < nextWeek ? " (played)" : ""}</option>`).join("");
+    const games = D.sched.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => String(a[2]).localeCompare(String(b[2])));
+    $("l-head").textContent = games.length ? `Week ${S.week} · ${games.length} games` : "No lines yet for this week. Pick another week.";
+    const day = (d) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    const cell = (g, team) => {
+      const line = sideLine(g, team), st = stat(line, 0), res = g[5] === null ? null : g[4] === team ? g[5] : -g[5];
+      return `<td class="num"${covBg(st.cover)}><strong>${spr(line)}</strong>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>`}</td>`;
+    };
+    $("l-table").innerHTML = `<thead><tr><th>Road</th><th class="num">Spread</th><th class="num">Spread</th><th>Home</th><th class="num">Total</th><th class="fl">Kickoff</th></tr></thead><tbody>` +
+      games.map((g) => `<tr><td><strong>${teamPill(g[3])}</strong>${g[5] !== null ? `<span class="sub">${g[8]}</span>` : ""}</td>${cell(g, g[3])}${cell(g, g[4])}<td><strong>${teamPill(g[4])}</strong>${g[5] !== null ? `<span class="sub">${g[9]}</span>` : ""}</td><td class="num">${g[7] === null ? "–" : g[7]}</td><td class="fl">${esc(day(g[2]))}</td></tr>`).join("") + "</tbody>";
+  }
   function render() {
+    $("z-mode").innerHTML = [["lines", "Lines"], ["tease", "Teasers"]].map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("");
+    $("z-lines").hidden = S.mode !== "lines";
+    $("z-tease").hidden = S.mode !== "tease";
+    if (S.mode === "lines") { renderLines(); return; }
     // pick-a-leg table
     $("z-pts").innerHTML = [6, 6.5, 7].map((p) => `<button type="button" class="chip" data-pts="${p}" aria-pressed="${S.pts === p}">${p} points</button>`).join("");
     $("z-sort").innerHTML = [["cover", "Best history"], ["game", "Game order"]].map(([k, l]) => `<button type="button" class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("");
@@ -1479,6 +1506,8 @@ const Saved = (() => {
       }).join("") + `</tbody></table></div><p class="notes" style="margin-top:6px">Type your book's odds in the Odds boxes (for ${n} legs at each point option). Expected is the average result on $${S.stake}. Ones you haven't typed in stay blank. Pushes count as losses here, so a leg that often lands exactly on the number looks a little worse than it is.</p>` : "";
   }
 
+  $("z-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-mode]"); if (b) { S.mode = b.dataset.mode; render(); } });
+  $("l-week").addEventListener("change", (e) => { S.week = +e.target.value; render(); });
   $("z-pts").addEventListener("click", (e) => { const b = e.target.closest("button[data-pts]"); if (b) { S.pts = +b.dataset.pts; render(); } });
   $("z-sort").addEventListener("click", (e) => { const b = e.target.closest("button[data-sort]"); if (b) { S.sort = b.dataset.sort; render(); } });
   $("z-week").addEventListener("change", (e) => { S.week = +e.target.value; render(); });
@@ -1499,6 +1528,7 @@ const Saved = (() => {
     if (t.odds !== null && t.odds !== undefined) S.odds[Math.max(t.legs.length, 2) + "|" + t.pts] = t.odds;
     if (weeks.includes(t.legs[0].week)) S.week = t.legs[0].week;
     S.msg = `Loaded “${t.name}”.`;
+    S.mode = "tease";
     render();
   };
   $("z-table").addEventListener("click", (e) => { const b = e.target.closest("button[data-add]"); if (b) { addLeg(b.dataset.add, S.week, S.ov[key(b.dataset.add, S.week)]); render(); } });
