@@ -116,6 +116,7 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .fscore.lose { color: var(--ink2); font-weight: 500; }
 .fin { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); margin-left: 4px; }
 @media (max-width: 520px) { #l-table .fin { display: none; } }
+#l-table .sub.mv { font-size: 10px; margin-top: 0; opacity: .85; white-space: nowrap; }
 .stp { display: inline-flex; align-items: center; gap: 4px; }
 .stp .mini { height: 30px; width: 30px; padding: 0; }
 #re-toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 80; max-width: 90vw; text-align: center; }
@@ -662,6 +663,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <div id="z-lines" style="margin-top:12px">
       <div class="lbar" id="l-bar"><label class="lf"><span class="lbl">Week</span><select id="l-week"></select></label><div id="l-dyn" style="display:contents"></div></div>
       <p class="tiles-head" id="l-head" style="margin:0"></p>
+      <p class="notes" id="l-upd" style="margin:2px 0 8px"></p>
       <section class="panel" aria-label="Spreads"><div class="tablewrap" style="margin-top:0"><table id="l-table"></table></div></section>
       <p class="notes" id="l-notes">Road team on the left, home team on the right. The number is each team's spread (minus means favored). The small percent under each spread (and the shading) is how often teams with a similar spread since 2015 covered it straight up: green is above 50%, red is below, and it stays close to even because books set these lines to be about fair. Lines come from one free data file, so they can differ a little from your book. Type over a line on the Teasers view to match yours.</p>
     </div>
@@ -1786,6 +1788,13 @@ const Saved = (() => {
   const picked = (g, type, team, line) => Saved.hasPick({ lg: LG, season: SEASON, week: g[1], away: g[3], home: g[4], type, team: team || "", line: pickLine(g, type, team, line) });
   const pickObj = (g, type, team, line) => ({ lg: LG, season: SEASON, week: g[1], away: g[3], home: g[4], date: g[2], type, team: team || "", line: pickLine(g, type, team, line) });
   const impOf = (g, team) => (g[7] === null || g[6] === null ? null : g[4] === team ? (g[7] + g[6]) / 2 : (g[7] - g[6]) / 2);
+  // ---- lines pulled from the odds feed, with their history ----
+  const OD = () => (DATA.odds && DATA.odds.ok ? DATA.odds : null);
+  const gKey = (g) => g[0] + "|" + g[1] + "|" + g[3] + "|" + g[4];
+  const histOf = (g) => { const o = OD(), h = o && o.moves && o.moves[LG] && o.moves[LG][gKey(g)]; return h && h.length ? h : null; };
+  const openOf = (g) => { const h = histOf(g); return h && h.length > 1 ? h[0] : null; };
+  const etFmt = (x, short) => { const d = typeof x === "number" ? new Date(x * 1000) : new Date(x); return d.toLocaleString("en-US", short ? { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" } : { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); };
+  const movedOf = (g) => { const o = openOf(g); return !!o && g[5] === null && (o[1] !== g[6] || o[2] !== g[7]); };
   function renderLines() {
     $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " · next" : w < nextWeek ? " · played" : ""}</option>`).join("");
     const allG0 = SCH.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => (String(a[2]) + (a[10] || "")).localeCompare(String(b[2]) + (b[10] || "")));
@@ -1819,7 +1828,7 @@ const Saved = (() => {
     const tr = {};
     const trend = (t) => tr[t] || (tr[t] = tally(teamRows(t).filter((x) => x.done).slice(-10)));
     const ovr = (t) => { const x = trend(t); return x.o + x.u ? x.o / (x.o + x.u) : 0.5; };
-    const FILTERS = [["all", "All games", () => true], ["over", "Overs hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 >= 0.6], ["under", "Unders hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 <= 0.4], ["ats", "Teams covering", (g) => [g[3], g[4]].some((t) => { const x = trend(t); return x.n >= 5 && x.c / (x.n - x.cp || 1) >= 0.7; })]];
+    const FILTERS = [["all", "All games", () => true], ["moved", "Line moved", (g) => movedOf(g)], ["over", "Overs hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 >= 0.6], ["under", "Unders hitting", (g) => (ovr(g[3]) + ovr(g[4])) / 2 <= 0.4], ["ats", "Teams covering", (g) => [g[3], g[4]].some((t) => { const x = trend(t); return x.n >= 5 && x.c / (x.n - x.cp || 1) >= 0.7; })]];
     const showSel = `<label class="lf"><span class="lbl">Show</span><select id="l-lf" aria-label="Filter games">${FILTERS.map(([k, l, f]) => `<option value="${k}" ${S.lf === k ? "selected" : ""}>${l} (${allG.filter(f).length})</option>`).join("")}</select></label>`;
     const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
     const hiTT = (g) => Math.max(g[7] + g[6], g[7] - g[6]) / 2;
@@ -1831,12 +1840,21 @@ const Saved = (() => {
     const sortSel = `<label class="lf${S.ls === "time" ? "" : " wide"}"><span class="lbl">Sort by</span><div class="lsrow"><select id="l-ls" aria-label="Sort games">${LSORT.map(([k, l]) => `<option value="${k}" ${S.ls === k ? "selected" : ""}>${l}</option>`).join("")}</select>` +
       (S.ls === "time" ? "" : `<button type="button" class="chip" data-lsdir="1" title="Flip the order">${S.ld > 0 ? (S.ls === "spread" ? "+ to − ↓" : "High ↓") : (S.ls === "spread" ? "− to + ↑" : "Low ↑")}</button>`) + `</div></label>`;
     $("l-dyn").innerHTML = gamesSel + sideSel + showSel + winSel + sortSel;
+    { const o = OD(), n = allG0.length, cov = allG0.filter((g) => histOf(g)).length, ed = allG0.filter(lineEdited).length;
+      let t;
+      if (!o || !o.updated || !o.updated[LG]) t = "Lines come from a free schedule file and can lag real sportsbooks. Tap any spread to type the number you see.";
+      else {
+        const bk = Object.entries((o.books && o.books[LG]) || {}).sort((a, b) => b[1] - a[1])[0];
+        t = `Lines updated ${etFmt(o.updated[LG])} ET${bk ? " from " + bk[0] : ""}.` + (n && cov < n ? ` ${n - cov} of ${n} games this week aren't in the feed yet and use the schedule file's number.` : "") + (o.error ? " The latest refresh failed, so these are the last saved lines." : "");
+      }
+      if (ed) t += ` ✎ ${ed} line${ed > 1 ? "s" : ""} changed by you.`;
+      $("l-upd").textContent = t; }
     $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>${recOf(t).n ? `<span class="rec" title="${isC() ? "Overall record (conference record)" : "Record this season"}">${recOf(t).txt}${isC() ? ` (${recOf(t).conf})` : ""}</span>` : ""}`;
     const cell = (g, team) => {
       const line = sideLine(g, team), st = stat(line, 0), res = g[5] === null ? null : g[4] === team ? g[5] : -g[5], on = picked(g, "spread", team);
-      return `<td class="num"${covBg(st.cover)}><button type="button" class="cellbtn" data-pick="${esc(g[3])}|${esc(g[4])}|spread|${esc(team)}" aria-pressed="${on}" aria-label="${on ? "Remove" : "Save"} ${esc(team)} ${spr(line)}"><strong>${spr(line)}</strong></button>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>`}</td>`;
+      return `<td class="num"${covBg(st.cover)}><button type="button" class="cellbtn" data-pick="${esc(g[3])}|${esc(g[4])}|spread|${esc(team)}" aria-pressed="${on}" aria-label="${on ? "Remove" : "Save"} ${esc(team)} ${spr(line)}"><strong>${spr(line)}</strong></button>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>${(() => { const o = openOf(g); if (!o || g[5] !== null) return ""; const was = g[4] === team ? -o[1] : o[1]; return was !== line ? `<span class="sub mv">was ${spr(was)}</span>` : ""; })()}`}</td>`;
     };
     const lsh = (k, label) => `<button type="button" class="linkbtn" data-ls="${k}" aria-pressed="${S.ls === k}" title="Click to sort, click again to flip">${label}${lsArrow(k)}</button>`;
     let html = `<thead><tr><th>Road</th><th class="num">${lsh("spread", "Spread")}</th><th class="num">${lsh("spread", "Spread")}</th><th>Home</th><th class="num">${lsh("total", "Total")}</th></tr></thead><tbody>`, last = "";
@@ -1846,7 +1864,7 @@ const Saved = (() => {
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
       html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
-        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
+        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
   }
@@ -1875,6 +1893,11 @@ const Saved = (() => {
   });
   // tap a spread: save the pick, add it to the teaser, or look at the team
   let act = null, actTT = null, actMsg = "";
+  const moveHTML = (g, team) => {
+    const h = histOf(g); if (!h) return "";
+    const side = (x) => (g[4] === team ? -x : x), rows = h.slice(-6);
+    return `<div class="notes" style="margin:10px 0 0"><strong>Line movement</strong>${h.length < 2 ? " · no movement yet" : ""}<br>` + rows.map((r, i) => `${etFmt(r[0], true)}: ${esc(team)} ${spr(side(r[1]))} · total ${r[2]}${i === 0 && h.length > rows.length ? " (older moves not shown)" : ""}`).join("<br>") + `</div>`;
+  };
   function openAct(g, team) {
     if (!act || act.team !== team || act.g !== g) { actTT = null; actMsg = ""; }
     act = { g, team, tt: team + g[1] };
@@ -1889,7 +1912,7 @@ const Saved = (() => {
         `<label class="sub" style="margin:0">Game total <input class="proj-in" id="ac-gt" type="number" step="0.5" inputmode="decimal" value="${g[7] === null ? "" : g[7]}" style="width:80px"></label>` +
         `<button type="button" class="chip primary" data-ac="lupdate">Update line</button></div>` +
         `<p class="notes" id="ac-imp" style="margin:6px 0 0">${actMsg || ""}</p>` +
-        (lineEdited(g) ? `<button type="button" class="chip" data-ac="lreset" style="margin-top:8px">Reset to original line</button>` : "") + `<p class="notes" style="margin:4px 0 0">Changes the line everywhere (Lines, Teasers, team totals, tease buttons) on this device.</p></div>` +
+        (lineEdited(g) ? `<button type="button" class="chip" data-ac="lreset" style="margin-top:8px">Reset to original line</button>` : "") + `<p class="notes" style="margin:4px 0 0">Changes the line everywhere (Lines, Teasers, team totals, tease buttons) on this device.</p>${moveHTML(g, team)}</div>` +
       (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">Bet ${esc(team)} team total</span><div class="chips"><button type="button" class="chip ${picked(g, "tover", team, ttv) ? "" : "primary"}" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over <span id="ac-tv1">${ttv}</span></button>` +
         `<input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:84px">` +
         `<button type="button" class="chip ${picked(g, "tunder", team, ttv) ? "" : "primary"}" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under <span id="ac-tv2">${ttv}</span></button></div><p class="notes" style="margin:4px 0 0">Starts at ${esc(team)}'s implied total (${imp}). Type your book's number if it's different, then tap Over or Under to save the pick.</p></div>`) +
@@ -2516,12 +2539,15 @@ const Saved = (() => {
   } catch (e) { /* storage not available */ }
   function apply() { root.setAttribute("data-theme", st.mode); root.setAttribute("data-look", st.look); root.setAttribute("data-hand", st.hand); }
   function save(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage not available */ } }
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const etFmt2 = (x) => new Date(x).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   function render() {
     const lockMode = st.look === "paper";
     $("st-body").innerHTML = `<h2 id="st-title">Settings</h2>` +
       `<div class="setrow"><span class="lbl">Look</span><div class="looks" role="group" aria-label="Look">` + LOOKS.map(([k, l, d]) => `<button type="button" class="chip" data-look="${k}" aria-pressed="${st.look === k}">${l}<span class="d">${d}</span></button>`).join("") + `</div></div>` +
       `<div class="setrow"><span class="lbl">Dark or light</span><div class="chips" role="group" aria-label="Dark or light">` + [["dark", "☾ Dark"], ["light", "☀ Light"]].map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${st.mode === k}" ${lockMode ? "disabled" : ""}>${l}</button>`).join("") + `</div>${lockMode ? '<p class="notes" style="margin:6px 0 0">Paper is always light.</p>' : ""}</div>` +
       `<div class="setrow"><span class="lbl">College football</span><p class="notes" style="margin:0">${COL ? `On: ${COL.sched.filter((r) => r[0] === COL.season).length} FBS games this season with lines. Lines and teasers only.` : `Off${DATA.college && DATA.college.reason ? ": " + esc(DATA.college.reason) : ""}. It turns on after the CFBD_API_KEY secret is added and the page rebuilds.`}</p></div>` +
+      `<div class="setrow"><span class="lbl">Betting lines</span><p class="notes" style="margin:0">${DATA.odds && DATA.odds.ok ? `Live feed on. Last updated ${Object.entries(DATA.odds.updated || {}).map(([k, v]) => (k === "cfb" ? "college " : "NFL ") + etFmt2(v) + " ET").join(", ")}.${DATA.odds.credits != null ? ` About ${esc(DATA.odds.credits)} free requests left this month.` : ""}${DATA.odds.error ? " Latest refresh failed: " + esc(DATA.odds.error) : ""}` : `Using the free schedule file's lines (they can lag your book).${DATA.odds && DATA.odds.reason ? " " + esc(DATA.odds.reason) : ""} Add the ODDS_API_KEY secret to get daily line updates and movement.`}</p></div>` +
       `<div class="setrow"><span class="lbl">Handwriting on your slip</span><div class="chips" role="group" aria-label="Handwriting font">` + HANDS.map(([k, l]) => `<button type="button" class="chip" data-hand="${k}" aria-pressed="${st.hand === k}">${l}</button>`).join("") + `</div>` +
       `<div class="slip handprev" style="padding:8px 12px;border-radius:6px;border:1px solid var(--axis)">PHI <span class="pos">+7</span> → <span class="pos">+13</span> · LV <span class="neg">−3</span> · Over 45.5</div>` +
       `<p class="notes" style="margin:6px 0 0">Used on the teaser slip and in the Saved panel. Pencil fonts load from the web, so they need a connection.</p></div>`;
