@@ -1,27 +1,50 @@
 # Razor's Edge
 
-Personal NFL research and daily fantasy tool: player prop hit rates, defense vs position, teaser history, and DraftKings lineup building with projections.
+Personal NFL and college football research tool. It is one web page that rebuilds itself and publishes to GitHub Pages.
 
-The site rebuilds itself on a schedule (Tue, Wed, Thu and Sat mornings) from free public data (nflverse) and publishes to GitHub Pages.
+**What it does**
+- **Lines & teasers** (opens first): every game's spread and total, with how often similar lines covered, team records (and conference records in college), AP ranks, last-10 trends, head-to-head history, and filters and sorts for side (home/road dogs), spread size, kickoff window (early, late, prime time), overs/unders hitting, and line moved. The Teasers page lets you build a slip, compare 6, 6.5 and 7 points, type your book's odds and see the payout, break-even and expected result.
+- **Teams** (NFL): best and worst offenses and defenses, sortable both ways.
+- **Players, Defenses, Top hit rates** (NFL): prop-bet hit rates by player and by defense, with opponent rank.
+- **DFS** (NFL): DraftKings lineup builder with projections.
+- **Bets**: track real and practice bets (teasers, parlays, straight bets), with profit, record and grading from final scores.
+- **Saved**: props, picks, lineups and teasers you save. Everything you save or edit lives in your own browser only (it is never sent to GitHub or this repository).
 
-## Each week
+## Where the data comes from
+| What | Source | Key needed |
+|---|---|---|
+| NFL stats, schedule, scores | nflverse / nfldata (free, public) | none |
+| College schedule, scores, ranks | CollegeFootballData.com | `CFBD_API_KEY` (free) |
+| Current spreads and totals, plus line history | The Odds API (Bovada first, then DraftKings, FanDuel, BetMGM) | `ODDS_API_KEY` (free plan, 500 credits a month) |
+
+Keys are stored as repository secrets (GitHub: Settings, Secrets and variables, Actions) and read during the build. They are never written into the page. Without a key that part simply stays off and the page keeps working with the free schedule lines.
+
+## When it updates
+- Every day around **7:17 am** and **1:17 pm Eastern** (GitHub Actions schedule in `.github/workflows/refresh.yml`).
+- Whenever code is pushed, or when you press **Actions, Refresh and publish, Run workflow**.
+- Odds credits: a refresh of NFL plus college costs 4 credits, so twice a day is about 240 of the free 500 a month. A run less than 3 hours after the last real fetch reuses the saved lines instead of spending credits (so code pushes don't use up the plan).
+- The line history ("was +8.5", the Line moved filter, the movement list on a game) is kept between runs in the GitHub Actions cache. If that cache is ever lost, history simply starts over.
+- Lines you type in yourself on a game are saved in your browser and marked with a pencil. A newer line from the feed replaces them.
+
+## Each week (fantasy)
 1. Export the DraftKings salary CSV for the slate.
-2. Upload it to this repository as `app/DKSalaries.csv` (replace the old file: **Add file → Upload files**, drag it in, commit).
-3. The site rebuilds within a few minutes. You can also press **Actions → Refresh and publish → Run workflow**.
+2. Upload it to this repository as `app/DKSalaries.csv` (replace the old file: **Add file, Upload files**, drag it in, commit).
+3. The site rebuilds within a few minutes.
 
 You can also just load a CSV on the page itself. That works instantly but only in your own browser.
 
 ## How it fits together
-- `pipeline/` the data and projection scripts. `python pipeline/run_all.py` runs everything and writes `site/index.html`.
+- `pipeline/` the data scripts. `python pipeline/run_all.py` runs everything and writes `site/index.html`.
+  - `fetch.py` / `prep_data.py` NFL data and projections
+  - `college.py` college data (CollegeFootballData)
+  - `odds.py` current lines and line history (The Odds API)
 - `app/` the page (`template.html`), its logic (`core.js`) and the built-in salary file.
-- `tests/smoke_test.js` runs before every publish. If it fails, the old site stays up.
-- `.github/workflows/refresh.yml` the schedule.
+- `tests/` `smoke_test.js` runs before every publish (if it fails, the old site stays up); `test_college.py` and `test_odds.py` check the college and odds code with made-up data.
+- `.github/workflows/refresh.yml` the schedule and the publish steps.
 
 ## Run it yourself
 ```
 pip install -r requirements.txt
 python pipeline/run_all.py
+python tests/test_odds.py
 ```
-
-## College football (optional)
-Lines and teasers only (FBS). It needs a free key from CollegeFootballData.com stored as a repository secret named `CFBD_API_KEY` (GitHub: Settings, Secrets and variables, Actions). Without the key the page simply shows NFL only. The key is read from the secret during the build and is never written into the page.
