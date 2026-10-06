@@ -214,6 +214,9 @@ tr:last-child td { border-bottom: 0; }
 .res { font-size: 12px; font-weight: 600; }
 .res.ok { color: var(--accent); }
 .res.no { color: var(--bad); }
+#b-root .svc { background: var(--surface); }
+#b-root .stat .v { font-size: 22px; }
+#b-root .svedit label { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
 .rk { font-size: 11px; font-weight: 700; opacity: .7; margin-right: 3px; }
 .tm { display: inline-block; min-width: 34px; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .02em; line-height: 17px; padding: 0 6px; border-radius: 4px; background: var(--hover); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(128,128,128,.35); vertical-align: 1px; }
 .lock { border: 0; background: none; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 6px 0 0; opacity: .35; vertical-align: -1px; }
@@ -431,6 +434,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="false" aria-controls="view-tease">Lines &amp; teasers</button>
     <button type="button" role="tab" id="tab-teams" class="chip" aria-selected="false" aria-controls="view-teams">Teams</button>
     <button type="button" role="tab" id="tab-proj" class="chip" aria-selected="false" aria-controls="view-proj">DFS</button>
+    <button type="button" role="tab" id="tab-bets" class="chip" aria-selected="false" aria-controls="view-bets">Bets</button>
   </nav>
 
   <div class="view" id="view-players">
@@ -664,6 +668,10 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <p class="notes" id="ts-notes">Yards per game, with the league rank next to it. For defenses, 1st means the fewest yards allowed (green); for offenses, 1st means the most (green). Passing yards are net of sacks, the way the NFL lists team passing and total yards, so pass plus rush equals total. A defense's numbers are what opponents gained against it. Tap a team for its spread and over/under record, head-to-head and game-by-game numbers. The numbers update every week when the site rebuilds.</p>
   </div>
 
+  <div class="view" id="view-bets" role="tabpanel" aria-labelledby="tab-bets" hidden>
+    <div id="b-root"></div>
+  </div>
+
   <div class="view" id="view-proj" role="tabpanel" aria-labelledby="tab-proj" hidden>
     <section class="controls pc" aria-label="Load a DraftKings slate">
       <div class="field">
@@ -820,7 +828,7 @@ const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:c
 const RE = {};
 const Saved = (() => {
   const KEY = "re-saved-v1";
-  const d = { props: [], picks: [], lineups: [], teasers: [] };
+  const d = { props: [], picks: [], lineups: [], teasers: [], bets: [] };
   let ok = true;
   try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) for (const k of Object.keys(d)) if (Array.isArray(r[k])) d[k] = r[k]; } catch (e) { ok = false; }
   const subs = [];
@@ -850,7 +858,7 @@ const Saved = (() => {
     remove(kind, id) { const i = d[kind].findIndex((x) => x.id === id); if (i >= 0) { d[kind].splice(i, 1); commit(); } },
     update(kind, id, patch) { const x = d[kind].find((y) => y.id === id); if (x) { Object.assign(x, patch); commit(); } },
     clear(kind) { d[kind].length = 0; commit(); },
-    exportJSON: () => JSON.stringify({ app: "razors-edge", v: 1, props: d.props, picks: d.picks, lineups: d.lineups, teasers: d.teasers }, null, 1),
+    exportJSON: () => JSON.stringify({ app: "razors-edge", v: 1, props: d.props, picks: d.picks, lineups: d.lineups, teasers: d.teasers, bets: d.bets }, null, 1),
     importJSON(text) {
       let r;
       try { r = JSON.parse(text); } catch (e) { return { error: "That isn't a backup file. Paste the whole text, starting with {." }; }
@@ -1470,7 +1478,7 @@ const Saved = (() => {
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   // tabs
-  const tabs = { players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")] };
+  const tabs = { players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")], bets: [$("tab-bets"), $("view-bets")] };
   function show(k) {
     for (const [key, [t, v]] of Object.entries(tabs)) {
       t.setAttribute("aria-selected", String(key === k));
@@ -2536,6 +2544,11 @@ const Saved = (() => {
     }
     return { cls: "", text: done.length ? `${done.length} of ${rs.length} played, none missed yet.` : "Not played yet.", rs };
   }
+  RE.teaserOutcome = (t) => {
+    if (!t.legs || !t.legs.length || typeof t.legs[0] !== "object") return "pending";
+    const st = teaserStatus(t);
+    return st.cls === "no" ? "lost" : st.cls === "ok" ? "won" : /^No leg missed/.test(st.text) ? "push" : "pending";
+  };
   function teasersHTML() {
     const T = Saved.data.teasers;
     if (!T.length) return `<p class="notes">No saved teasers yet. On the Teasers tab, build a slip with 2 or more legs, type a name and press Save teaser.</p>`;
@@ -2552,7 +2565,7 @@ const Saved = (() => {
           return `<li>${lbl} <span>${nums}</span>` +
             (x === null ? ` <span class="sub" style="margin:0">pending</span>` : x > 0 ? ` <span class="res ok">Covered by ${Math.round(x * 10) / 10}</span>` : x === 0 ? ` <span class="res">Push</span>` : ` <span class="res no">Missed by ${Math.round(-x * 10) / 10}</span>`) + `</li>`;
         }).join("") + `</ul>` +
-        `<div class="svedit"><button type="button" class="chip primary" data-loadt="${t.id}" ${RE.loadTeaser && (t.lg === "cfb" ? COL && t.season === COL.season : (t.season || D.season) === D.season) ? "" : "disabled"}>Load into Teasers</button><button type="button" class="mini" data-del="teasers|${t.id}">Delete</button></div></div>`;
+        `<div class="svedit"><button type="button" class="chip primary" data-loadt="${t.id}" ${RE.loadTeaser && (t.lg === "cfb" ? COL && t.season === COL.season : (t.season || D.season) === D.season) ? "" : "disabled"}>Load into Teasers</button><button type="button" class="chip" data-track="${t.id}" ${Saved.data.bets.some((b) => b.tid === t.id) ? "disabled" : ""}>${Saved.data.bets.some((b) => b.tid === t.id) ? "In Bets ✓" : "Track in Bets"}</button><button type="button" class="mini" data-del="teasers|${t.id}">Delete</button></div></div>`;
     }).join("");
   }
 
@@ -2615,6 +2628,11 @@ const Saved = (() => {
     }
     if (ds.openl) { const x = Saved.data.picks.find((y) => y.id === ds.openl); if (x && RE.showLines) { RE.showLines(x.week, x.lg); go("tab-tease"); } return; }
     if (ds.loadl) { const l = Saved.data.lineups.find((y) => y.id === ds.loadl); if (l && RE.loadLineup) { RE.loadLineup(l); go("tab-proj"); } return; }
+    if (ds.track) {
+      const t = Saved.data.teasers.find((y) => y.id === ds.track);
+      if (t && !Saved.data.bets.some((b) => b.tid === t.id)) Saved.add("bets", { tid: t.id, name: t.name, type: "teaser", sport: t.lg === "cfb" ? "College" : "NFL", lg: t.lg || "nfl", season: t.season, pts: t.pts, stake: t.stake || null, odds: t.odds || null, toWin: null, result: "auto", real: false, book: "", date: new Date().toISOString().slice(0, 10), legs: t.legs });
+      return;
+    }
     if (ds.loadt) { const l = Saved.data.teasers.find((y) => y.id === ds.loadt); if (l && RE.loadTeaser) { RE.loadTeaser(l); go("tab-tease"); } return; }
     if (ds.bk === "fill") { $("sv-json").value = Saved.exportJSON(); $("sv-json").select(); return; }
     if (ds.bk === "dl") {
@@ -2652,6 +2670,115 @@ const Saved = (() => {
     }
   });
   // switching to a view (or saving something) keeps the button count right
+  render();
+})();
+
+// ---------- Bets: real and practice bets, with the money worked out ----------
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const root = $("b-root");
+  const V = { who: "all", type: "all", add: false, note: "" };
+  const TYPES = [["teaser", "Teaser"], ["parlay", "Parlay"], ["straight", "Straight"], ["other", "Other"]];
+  const tname = (k) => (TYPES.find((x) => x[0] === k) || ["", k])[1];
+  const m = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
+  const ms = (v) => (v > 0 ? "+$" : v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
+  const odd = (o) => (o === null || o === undefined ? "" : (o > 0 ? "+" : "−") + Math.abs(o));
+  const pct = (v) => (v === null || !Number.isFinite(v) ? "–" : Math.round(v * 100) + "%");
+  const outcome = (b) => (b.result && b.result !== "auto" ? b.result : b.type === "teaser" && RE.teaserOutcome ? RE.teaserOutcome(b) : "pending");
+  function profit(b) {
+    const o = outcome(b);
+    if (o === "won") return b.toWin !== null && b.toWin !== undefined ? b.toWin : b.stake && b.odds ? b.stake * oddsProfit(b.odds) : null;
+    if (o === "lost") return b.stake ? -b.stake : null;
+    return o === "push" ? 0 : null;
+  }
+  const sg = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v * 10) / 10);
+  function legText(l, pts) {
+    if (typeof l === "string") return esc(l);
+    const t = l.type || "spread", r = (v) => Math.round(v * 10) / 10;
+    if (t === "spread") return `${esc(l.team)} ${sg(l.line)} → ${sg(l.line + pts)} <span class="sub" style="margin:0">wk ${l.week}</span>`;
+    if (t === "tover" || t === "tunder") return `${esc(l.team)} team total ${t === "tover" ? "over" : "under"} ${l.line} → ${r(t === "tover" ? l.line - pts : l.line + pts)}`;
+    return `Game ${t} ${l.line} → ${r(t === "over" ? l.line - pts : l.line + pts)} <span class="sub" style="margin:0">${esc(l.opp)} at ${esc(l.team)}</span>`;
+  }
+  const dateOf = (b) => b.date || new Date(b.at || 0).toISOString().slice(0, 10);
+  function render() {
+    const all = Saved.data.bets.slice().sort((a, b) => (dateOf(b) + (b.at || 0)).localeCompare(dateOf(a) + (a.at || 0)));
+    const list = all.filter((b) => (V.who === "all" || (V.who === "real") === !!b.real) && (V.type === "all" || b.type === V.type));
+    const st = { w: 0, l: 0, p: 0, pend: 0, staked: 0, profit: 0, noStake: 0 }, by = {};
+    for (const b of list) {
+      const o = outcome(b), pr = profit(b);
+      if (o === "pending") { st.pend++; continue; }
+      const k = (by[b.type] = by[b.type] || { w: 0, l: 0, p: 0, staked: 0, profit: 0 });
+      if (o === "won") { st.w++; k.w++; } else if (o === "lost") { st.l++; k.l++; } else { st.p++; k.p++; }
+      if (pr === null || (b.stake === null || b.stake === undefined)) { st.noStake++; continue; }
+      st.staked += b.stake; st.profit += pr; k.staked += b.stake; k.profit += pr;
+    }
+    const chips = (cur, arr, f) => arr.map(([k, l]) => `<button type="button" class="chip" data-${f}="${k}" aria-pressed="${cur === k}">${l}</button>`).join("");
+    let h = `<div class="chips" role="group" aria-label="Whose bets">${chips(V.who, [["all", "All"], ["real", "Real money"], ["prac", "Practice"]], "who")}</div>` +
+      `<div class="chips" style="margin-top:8px" role="group" aria-label="Bet type">${chips(V.type, [["all", "All types"], ...TYPES], "bt")}</div>`;
+    h += `<div class="stats" style="margin-top:12px"><div class="stat hi"><span class="k">Record</span><span class="v">${st.w}-${st.l}${st.p ? "-" + st.p : ""}</span><span class="n">${st.pend ? st.pend + " still open" : "wins-losses"}</span></div>` +
+      `<div class="stat ${st.profit > 0 ? "ok" : st.profit < 0 ? "neg" : ""}"><span class="k">Profit</span><span class="v">${ms(st.profit)}</span><span class="n">${st.noStake ? st.noStake + " bet" + (st.noStake > 1 ? "s" : "") + " missing a stake" : "wins minus losses"}</span></div>` +
+      `<div class="stat"><span class="k">Staked</span><span class="v">${m(st.staked)}</span><span class="n">on settled bets</span></div>` +
+      `<div class="stat"><span class="k">Return</span><span class="v">${st.staked ? pct(st.profit / st.staked) : "–"}</span><span class="n">profit per dollar staked</span></div></div>`;
+    const ks = Object.keys(by);
+    if (ks.length > 1) h += `<div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Type</th><th class="num">Record</th><th class="num">Staked</th><th class="num">Profit</th></tr></thead><tbody>` + ks.map((k) => `<tr><td>${tname(k)}</td><td class="num">${by[k].w}-${by[k].l}${by[k].p ? "-" + by[k].p : ""}</td><td class="num">${m(by[k].staked)}</td><td class="num"><span class="${by[k].profit > 0 ? "pos" : by[k].profit < 0 ? "neg" : ""}">${ms(by[k].profit)}</span></td></tr>`).join("") + `</tbody></table></div>`;
+    h += `<div class="chips" style="margin:14px 0 8px"><button type="button" class="chip primary" data-badd="1">${V.add ? "Close the form" : "+ Add a bet"}</button></div>`;
+    if (V.add) h += addForm();
+    if (V.note) h += `<p class="notes">${esc(V.note)}</p>`;
+    h += list.length ? list.map(card).join("") : `<p class="notes">${all.length ? "Nothing matches these filters." : "No bets yet. Add one above, or open Saved, go to Teasers and press “Track in Bets” on a teaser you built."}</p>`;
+    h += `<p class="notes">Profit on a win is the “to win” amount from your slip (or stake × your odds). A loss is minus the stake. Pushes count as zero. Teasers built here and tracked grade themselves from final scores; the rest you mark by hand. Bets live in this browser only. Use Backup in the Saved panel to keep a copy.</p>`;
+    root.innerHTML = h;
+  }
+  function addForm() {
+    const today = new Date().toISOString().slice(0, 10);
+    return `<div class="svc" id="b-form"><input class="svname" id="bf-name" type="text" placeholder="Name (for example: 6-leg teaser)" maxlength="70" aria-label="Bet name">` +
+      `<div class="svedit"><select id="bf-type" aria-label="Type">${TYPES.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>` +
+      `<select id="bf-sport" aria-label="Sport">${["NFL", "College", "MLB", "NBA", "Other"].map((x) => `<option>${x}</option>`).join("")}</select>` +
+      `<input class="proj-in" id="bf-date" type="date" value="${today}" style="width:150px" aria-label="Date"></div>` +
+      `<div class="svedit"><label>Stake $ <input class="proj-in" id="bf-stake" type="number" step="0.01" inputmode="decimal"></label><label>Odds <input class="proj-in" id="bf-odds" type="text" inputmode="numeric" placeholder="+1200"></label><label>To win $ <input class="proj-in" id="bf-win" type="number" step="0.01" inputmode="decimal"></label></div>` +
+      `<div class="svedit"><select id="bf-res" aria-label="Result"><option value="pending">Still open</option><option value="won">Won</option><option value="lost">Lost</option><option value="push">Push</option></select><label><input type="checkbox" id="bf-real" checked> Real money</label><input class="proj-in" id="bf-book" type="text" placeholder="Book" style="width:110px" aria-label="Book"></div>` +
+      `<textarea id="bf-legs" rows="4" placeholder="Legs, one per line (optional)" aria-label="Legs"></textarea>` +
+      `<div class="svedit"><button type="button" class="chip primary" data-bsave="1">Save bet</button></div></div>`;
+  }
+  function card(b) {
+    const o = outcome(b), pr = profit(b), auto = b.result === "auto";
+    const resCls = o === "won" ? "ok" : o === "lost" ? "no" : "";
+    const txt = o === "pending" ? "Still open" : o === "won" ? "Won" : o === "lost" ? "Lost" : "Push";
+    return `<div class="svc"><input class="svname" type="text" data-bf="name|${b.id}" value="${esc(b.name || "")}" maxlength="70" aria-label="Bet name">` +
+      `<div class="sub" style="margin:0">${esc(b.sport || "")} · ${tname(b.type)} · ${esc(b.book || "")}${b.book ? " · " : ""}${esc(dateOf(b))}${b.legs && b.legs.length ? " · " + b.legs.length + " legs" : ""}${b.type === "teaser" && b.pts ? " · " + b.pts + " pts" : ""}</div>` +
+      `<div style="margin-top:6px"><span class="res ${resCls}">${txt}${auto ? " (from scores)" : ""}</span> ` + (pr !== null && o !== "pending" ? `<strong class="${pr > 0 ? "pos" : pr < 0 ? "neg" : ""}">${ms(pr)}</strong>` : o !== "pending" ? `<span class="sub" style="margin:0">add the stake to see profit</span>` : "") + `</div>` +
+      `<div class="svedit"><label>Stake $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="stake|${b.id}" value="${b.stake === null || b.stake === undefined ? "" : b.stake}"></label><label>Odds <input class="proj-in" type="text" inputmode="numeric" data-bf="odds|${b.id}" value="${odd(b.odds)}" placeholder="+400"></label><label>To win $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="toWin|${b.id}" value="${b.toWin === null || b.toWin === undefined ? "" : b.toWin}"></label></div>` +
+      `<div class="chips" style="margin-top:8px">` + [...(b.type === "teaser" && b.legs && b.legs.length && typeof b.legs[0] === "object" ? [["auto", "Auto"]] : []), ["pending", "Open"], ["won", "Won"], ["lost", "Lost"], ["push", "Push"]].map(([k, l]) => `<button type="button" class="mini" data-bres="${k}|${b.id}" aria-pressed="${(b.result || "pending") === k}">${l}</button>`).join("") +
+      `<button type="button" class="mini" data-breal="${b.id}" aria-pressed="${!!b.real}">${b.real ? "Real money" : "Practice"}</button></div>` +
+      (b.legs && b.legs.length ? `<details><summary>Show legs</summary><ul class="svlegs">${b.legs.map((l) => `<li>${legText(l, b.pts || 0)}</li>`).join("")}</ul></details>` : "") +
+      `<div class="svedit"><button type="button" class="mini" data-bdel="${b.id}">Delete</button></div></div>`;
+  }
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("button"); if (!t) return;
+    const d = t.dataset;
+    if (d.who) V.who = d.who; else if (d.bt) V.type = d.bt;
+    else if (d.badd) V.add = !V.add;
+    else if (d.bres) { const [k, id] = d.bres.split("|"); Saved.update("bets", id, { result: k }); return; }
+    else if (d.breal) { const b = Saved.data.bets.find((x) => x.id === d.breal); if (b) Saved.update("bets", b.id, { real: !b.real }); return; }
+    else if (d.bdel) { Saved.remove("bets", d.bdel); return; }
+    else if (d.bsave) {
+      const num = (id) => { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : null; };
+      const legs = $("bf-legs").value.split("\n").map((x) => x.trim()).filter(Boolean);
+      const type = $("bf-type").value;
+      Saved.add("bets", { name: $("bf-name").value.trim() || tname(type), type, sport: $("bf-sport").value, date: $("bf-date").value, stake: num("bf-stake"), odds: parseAmerican($("bf-odds").value), toWin: num("bf-win"), result: $("bf-res").value, real: $("bf-real").checked, book: $("bf-book").value.trim(), legs });
+      V.add = false; V.note = "Saved.";
+      return;
+    } else return;
+    render();
+  });
+  root.addEventListener("change", (e) => {
+    const t = e.target, f = t.dataset.bf; if (!f) return;
+    const [k, id] = f.split("|");
+    if (k === "name") { if (t.value.trim()) Saved.update("bets", id, { name: t.value.trim() }); }
+    else if (k === "odds") Saved.update("bets", id, { odds: parseAmerican(t.value) });
+    else { const v = parseFloat(t.value); Saved.update("bets", id, { [k]: Number.isFinite(v) ? v : null }); }
+  });
+  Saved.on(() => { V.note = V.note === "Saved." ? "Saved." : ""; if (!$("view-bets").hidden || true) render(); });
   render();
 })();
 
