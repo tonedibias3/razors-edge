@@ -1,0 +1,4 @@
+work/
+site/
+__pycache__/
+*.pkl
