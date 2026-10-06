@@ -1813,12 +1813,12 @@ const Saved = (() => {
     const showSel = `<label class="lf"><span class="lbl">Show</span><select id="l-lf" aria-label="Filter games">${FILTERS.map(([k, l, f]) => `<option value="${k}" ${S.lf === k ? "selected" : ""}>${l} (${allG.filter(f).length})</option>`).join("")}</select></label>`;
     const games = allG.filter(FILTERS.find((f) => f[0] === S.lf)[2]);
     const hiTT = (g) => Math.max(g[7] + g[6], g[7] - g[6]) / 2;
-    const LSORT = [["time", "Kickoff time"], ["total", "Game total"], ["tt", "Team total"], ["spread", "Spread size"]];
-    const lsKey = { total: (g) => g[7] || 0, tt: (g) => hiTT(g) || 0, spread: (g) => Math.abs(g[6]) || 0 }[S.ls];
+    const LSORT = [["time", "Kickoff time"], ["total", "Game total"], ["tt", "Team total"], ["spread", "Spread (road team)"]];
+    const lsKey = { total: (g) => g[7] || 0, tt: (g) => hiTT(g) || 0, spread: (g) => g[6] || 0 }[S.ls];
     if (lsKey) games.sort((a, b) => (lsKey(b) - lsKey(a)) * S.ld);
     const lsArrow = (k) => (S.ls === k ? (S.ld > 0 ? " ↓" : " ↑") : "");
     const sortSel = `<label class="lf${S.ls === "time" ? "" : " wide"}"><span class="lbl">Sort by</span><div class="lsrow"><select id="l-ls" aria-label="Sort games">${LSORT.map(([k, l]) => `<option value="${k}" ${S.ls === k ? "selected" : ""}>${l}</option>`).join("")}</select>` +
-      (S.ls === "time" ? "" : `<button type="button" class="chip" data-lsdir="1" title="Flip the order">${S.ld > 0 ? (S.ls === "spread" ? "Biggest ↓" : "High ↓") : (S.ls === "spread" ? "Smallest ↑" : "Low ↑")}</button>`) + `</div></label>`;
+      (S.ls === "time" ? "" : `<button type="button" class="chip" data-lsdir="1" title="Flip the order">${S.ld > 0 ? (S.ls === "spread" ? "+ to − ↓" : "High ↓") : (S.ls === "spread" ? "− to + ↑" : "Low ↑")}</button>`) + `</div></label>`;
     $("l-dyn").innerHTML = gamesSel + sideSel + showSel + sortSel;
     $("l-head").textContent = warn ? warn : allG.length ? `Week ${S.week} · ${games.length} game${games.length === 1 ? "" : "s"} · times are Eastern · under each team on a wide screen: its last 10 games (tap a team for more)` : allG0.length ? "No games match this view. Try All FBS above." : "No lines yet for this week. Pick another week.";
     const tl = (t) => { const x = trend(t); return x.n ? `ATS ${x.c}-${x.m}${x.cp ? "-" + x.cp : ""} · O/U ${x.o}-${x.u}${x.op ? "-" + x.op : ""}` : ""; };
