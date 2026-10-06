@@ -639,6 +639,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <section class="controls pc" aria-label="Teaser settings">
       <div class="field"><span class="lbl" id="z-pts-l">Teaser points</span><div class="chips" id="z-pts" role="group" aria-labelledby="z-pts-l"></div></div>
       <div class="field"><label class="lbl" for="z-stake">Stake ($)</label><input id="z-stake" type="number" inputmode="decimal" min="1" step="1" value="25"></div>
+      <div class="field"><label class="lbl" for="z-odds">Your odds (like +500)</label><input id="z-odds" type="number" inputmode="numeric" step="5" placeholder="+500"></div>
     </section>
     <section class="panel slip" id="z-slip" aria-label="Your teaser">
       <div class="panel-head"><h2>Your teaser</h2></div>
@@ -1640,7 +1641,7 @@ const Saved = (() => {
   const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
   const wkInfo = (sch, season) => { const w = [...new Set(sch.filter((r) => r[0] === season && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b); return { w, n: w.find((x) => sch.filter((r) => r[0] === season && r[1] === x).every((r) => r[5] === null)) || w[w.length - 1] }; };
   let { w: weeks, n: nextWeek } = wkInfo(SCH, SEASON);
-  const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", legs: [], odds: {}, ov: {}, msg: "" };
+  const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", dir: 1, legs: [], odds: {}, ov: {}, msg: "" };
   const STORE = {};
   const NOTE_L = $("l-notes").textContent, NOTE_Z = $("z-notes").textContent;
   function setLeague(lg) {
@@ -1951,7 +1952,7 @@ const Saved = (() => {
     if (S.mode === "lines") { renderLines(); return; }
     // pick-a-leg table
     $("z-pts").innerHTML = [6, 6.5, 7].map((p) => `<button type="button" class="chip" data-pts="${p}" aria-pressed="${S.pts === p}">${p} points</button>`).join("");
-    $("z-sort").innerHTML = [["cover", "Best history"], ["game", "Game order"]].map(([k, l]) => `<button type="button" class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("");
+    $("z-sort").innerHTML = [["cover", "Best history"], ["game", "Game order"], ["last", "Team last 10"], ["tease", "Teased spread"]].map(([k, l]) => `<button type="button" class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("");
     $("z-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " (upcoming)" : w < nextWeek ? " (played)" : ""}</option>`).join("");
     const n = S.legs.length, need = needFor(n || 6, S.pts);
     const rows = [];
@@ -1962,10 +1963,14 @@ const Saved = (() => {
         rows.push({ g, team, opp: g[4] === team ? g[3] : g[4], home: g[4] === team, line, st, k, res: g[5] === null ? null : g[4] === team ? g[5] : -g[5] });
       }
     }
-    if (S.sort === "cover") rows.sort((a, b) => b.st.cover - a.st.cover);
+    const lastPct = (r) => { const x = teamRecent(TG, r.team, S.pts, 10); return x.n ? x.cover / x.n : -1; };
+    if (S.sort === "cover") rows.sort((a, b) => (b.st.cover - a.st.cover) * S.dir);
+    else if (S.sort === "tease") rows.sort((a, b) => (a.line - b.line) * S.dir);
+    else if (S.sort === "last") rows.sort((a, b) => (lastPct(b) - lastPct(a)) * S.dir);
     $("z-notes").textContent = isC() ? NOTE_Z.replace("since 2015", "since " + FIRSTY) + " College history is shorter than the NFL's, so those percentages are rougher." : NOTE_Z;
     $("z-head").textContent = rows.length ? `Week ${S.week} · every team, with its line moved ${S.pts} points. Green means the history clears what your odds need.` : "No lines yet for this week. Pick another week.";
-    $("z-table").innerHTML = `<thead><tr><th>Team</th><th class="num">Line</th><th class="num">Teased</th><th class="gm">Crosses</th><th class="num"><span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span></th><th class="num fl">Team last 10</th><th></th></tr></thead><tbody>` + rows.map((r) => {
+    const zh = (k, label) => { const on = S.sort === k, ar = !on ? "" : k === "tease" ? (S.dir > 0 ? " ↑" : " ↓") : (S.dir > 0 ? " ↓" : " ↑"); return `<button type="button" class="linkbtn" data-zs="${k}" aria-pressed="${on}" title="Click to sort, click again to flip">${label}${ar}</button>`; };
+    $("z-table").innerHTML = `<thead><tr><th>Team</th><th class="num">Line</th><th class="num">${zh("tease", "Teased")}</th><th class="gm">Crosses</th><th class="num">${zh("cover", `<span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span>`)}</th><th class="num fl">${zh("last", "Team last 10")}</th><th></th></tr></thead><tbody>` + rows.map((r) => {
       const inSlip = S.legs.some((l) => l.team === r.team && l.week === S.week && lt(l) === "spread");
       return `<tr class="${inSlip ? "mine" : ""}"><td><strong>${tb(r.team)}</strong><span class="sub">${r.home ? "vs" : "at"} ${tb(r.opp)}</span>${resultCell(r.res, r.line, S.pts) ? `<span class="sub">${resultCell(r.res, r.line, S.pts)}</span>` : ""}</td>` +
         `<td class="num">${lineIn(r.k, r.line, "Line for " + r.team)}</td><td class="num"><strong>${sl(r.line + S.pts)}</strong></td><td class="gm">${crosses(r.line, S.pts)}</td>` +
@@ -1975,6 +1980,7 @@ const Saved = (() => {
 
     // slip
     $("z-stake").value = S.stake;
+    { const oo = oddsFor(Math.max(S.legs.length, 2), S.pts); if (document.activeElement !== $("z-odds")) $("z-odds").value = oo === null ? "" : oo; }
     const legs = S.legs.map((l) => ({ ...l, st: legStat(l, S.pts) }));
     const probs = legs.map((l) => l.st.cover), allp = probs.reduce((a, b) => a * b, 1);
     const odds = oddsFor(Math.max(n, 2), S.pts), beAll = odds === null ? null : 1 / (1 + oddsProfit(odds));
@@ -1984,6 +1990,7 @@ const Saved = (() => {
     $("z-sum").innerHTML = `<div class="stat ${n >= 2 ? "hi" : ""}"><span class="k">Legs</span><span class="v">${n}</span></div>` +
       `<div class="stat"><span class="k">Odds</span><span class="v">${odds === null ? "–" : (odds > 0 ? "+" : "") + odds}</span><span class="n">${n >= 2 ? "for " + n + " legs, " + S.pts + " pts" : "add 2+ legs"}</span></div>` +
       `<div class="stat hi"><span class="k">All legs cover</span><span class="v">${n ? pct(allp) : "–"}</span><span class="n">from history, legs treated as independent</span></div>` +
+      `<div class="stat ${odds === null || !n ? "" : "hi"}"><span class="k">Pays</span><span class="v">${odds === null ? "–" : money(oddsProfit(odds) * S.stake)}</span><span class="n">${odds === null ? "type your odds in the box above" : "profit if it wins · " + money(oddsProfit(odds) * S.stake + S.stake) + " paid out with your $" + S.stake + " back"}</span></div>` +
       `<div class="stat"><span class="k">Needs</span><span class="v">${beAll === null ? "–" : pct(beAll)}</span><span class="n">${beAll === null ? "type your odds below" : "to break even"}</span></div>` +
       `<div class="stat ${ev === null ? "" : ev >= 0 ? "ok" : "neg"}"><span class="k">Expected</span><span class="v">${ev === null ? "–" : money(ev)}</span><span class="n">average result on $${S.stake}</span></div>`;
     $("z-legs").innerHTML = n ? `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Leg</th><th class="num">Line</th><th class="num">Teased</th><th class="gm">Crosses</th><th class="num"><span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span></th><th class="num fl">Team last 10</th><th></th></tr></thead><tbody>` + legs.map((l, i) =>
@@ -2005,8 +2012,10 @@ const Saved = (() => {
   $("z-mode").addEventListener("click", (e) => { const b = e.target.closest("button[data-mode]"); if (b) { S.mode = b.dataset.mode; render(); } });
   $("l-week").addEventListener("change", (e) => { S.week = +e.target.value; render(); });
   $("z-pts").addEventListener("click", (e) => { const b = e.target.closest("button[data-pts]"); if (b) { S.pts = +b.dataset.pts; render(); } });
-  $("z-sort").addEventListener("click", (e) => { const b = e.target.closest("button[data-sort]"); if (b) { S.sort = b.dataset.sort; render(); } });
+  $("z-sort").addEventListener("click", (e) => { const b = e.target.closest("button[data-sort]"); if (b) { S.sort = b.dataset.sort; S.dir = 1; render(); } });
+  $("z-table").addEventListener("click", (e) => { const b = e.target.closest("button[data-zs]"); if (!b) return; const k = b.dataset.zs; if (S.sort === k) S.dir = -S.dir; else { S.sort = k; S.dir = 1; } render(); });
   $("z-week").addEventListener("change", (e) => { S.week = +e.target.value; render(); });
+  $("z-odds").addEventListener("change", (e) => { const v = parseInt(e.target.value, 10), k = Math.max(S.legs.length, 2) + "|" + S.pts; if (Number.isFinite(v) && Math.abs(v) >= 100) S.odds[k] = v; else delete S.odds[k]; render(); });
   $("z-stake").addEventListener("change", (e) => { const v = parseFloat(e.target.value); S.stake = Number.isFinite(v) && v > 0 ? v : 25; render(); });
   $("z-clear").addEventListener("click", () => { S.legs = []; S.msg = ""; render(); });
   $("z-save").addEventListener("click", () => {
