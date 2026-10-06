@@ -30,6 +30,12 @@ jobs:
         with:
           node-version: 20
       - run: pip install -r requirements.txt
+      - name: Keep finished college seasons between runs (saves free API calls)
+        uses: actions/cache@v4
+        with:
+          path: work/cfb_cache
+          key: cfb-history-v1-${{ github.run_id }}
+          restore-keys: cfb-history-v1-
       - name: Download data, rebuild projections and the page
         run: python pipeline/run_all.py
         env:

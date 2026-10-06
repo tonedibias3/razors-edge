@@ -44,13 +44,25 @@ def fake_get(path, params=None):
     raise AssertionError(path)
 
 
-college.get = fake_get
+import tempfile
+college.CACHE = tempfile.mkdtemp()
+calls = []
+def counting_get(path, params=None):
+    calls.append(path)
+    return fake_get(path, params)
+college.get = counting_get
 res = college.build(season)
+first_calls = len(calls)
+calls.clear()
+res2 = college.build(season)   # second run: finished seasons come from the cache
 ok = True
 def t(name, cond):
     global ok
     print("ok  " if cond else "FAIL", name)
     ok = ok and cond
+t("first run fetches every season", first_calls == 2 + college.YEARS_BACK + 1)
+t("second run only fetches teams, this season and polls", len(calls) == 3)
+t("cached run gives the same games", len(res2["sched"]) == len(res["sched"]))
 t("teams loaded", len(res["teams"]) == len(TEAMS))
 t("FCS game dropped", all(r[3] in res["teams"] and r[4] in res["teams"] for r in res["sched"]))
 t("all seasons of games", {r[0] for r in res["sched"]} == set(range(season - college.YEARS_BACK, season + 1)))

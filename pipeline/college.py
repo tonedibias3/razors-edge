@@ -12,6 +12,7 @@ BASES = ["https://apinext.collegefootballdata.com", "https://api.collegefootball
 KEY = os.environ.get("CFBD_API_KEY", "").strip()
 YEARS_BACK = 13  # this season plus 13 earlier ones (lines exist from 2013) for head-to-head; trends and "similar games" use the last five seasons
 ET = ZoneInfo("America/New_York")
+CACHE = os.environ.get("CFB_CACHE") or os.path.join(WORK, "cfb_cache")
 
 
 class ApiError(Exception):
@@ -95,7 +96,19 @@ def build(season):
     if len(fbs) < 100:
         raise ApiError(f"expected about 130 FBS teams but got {len(fbs)}")
     rows = []
+    os.makedirs(CACHE, exist_ok=True)
     for yr in range(season - YEARS_BACK, season + 1):
+        # finished seasons never change, so they are fetched once and kept (the workflow caches this folder)
+        cp = os.path.join(CACHE, f"lines_{yr}.json")
+        if yr < season and os.path.exists(cp):
+            try:
+                old = json.load(open(cp))
+                rows.extend(r for r in old if r[3] in fbs and r[4] in fbs)
+                print(f"  {yr}: from cache", flush=True)
+                continue
+            except Exception:
+                pass
+        start = len(rows)
         games = get("/lines", {"year": yr, "seasonType": "regular"})
         used = 0
         for g in games:
@@ -119,6 +132,8 @@ def build(season):
                          ap if done else None, hp if done else None, t, teams[away]["conf"], teams[home]["conf"]])
             used += 1
         print(f"  {yr}: {used} FBS games with lines", flush=True)
+        if yr < season and used:
+            json.dump(rows[start:], open(cp, "w"), separators=(",", ":"))
     rows.sort(key=lambda r: (r[0], r[1], r[2], r[10]))
     # AP poll by week (the poll listed for week N is the one in force for week N's games)
     ranks = {}
