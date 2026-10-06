@@ -8,6 +8,7 @@ const csv = fs.readFileSync(path.join(root, "app", "DKSalaries.csv"), "utf8").re
 let ok = true;
 const t = (name, cond) => { console.log(cond ? "ok  " : "FAIL", name); if (!cond) ok = false; };
 t("parlay math", core.parseAmerican("−115") === -115 && core.parseAmerican("50") === null && Math.abs(core.parlayCombine([{ odds: -110 }, { odds: -110 }], 10).dec - 3.6446) < 0.001 && core.decimalToAmerican(2.6) === 160);
+t("team yardage loaded", Array.isArray(data.tstats) && data.tstats.length > 500);
 t("players loaded", data.players.length > 500);
 t("schedule rows loaded", data.sched.length > 3000);
 t("projection rows", dfs.rows.length > 200 && dfs.dst.length >= 20);

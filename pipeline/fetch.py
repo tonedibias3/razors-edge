@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from config import WORK, FIRST_SEASON, upcoming
 
 STATS = "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_{y}.csv"
+TEAM = "https://github.com/nflverse/nflverse-data/releases/download/stats_team/stats_team_week_{y}.csv"
 SCHED = "https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv"
 
 
@@ -32,6 +33,7 @@ if __name__ == "__main__":
     season, week = nxt
     got = []
     for y in range(FIRST_SEASON, season + 1):
+        get(TEAM.format(y=y), os.path.join(WORK, f"team_{y}.csv"))   # team yardage; the page copes if one is missing
         ok = get(STATS.format(y=y), os.path.join(WORK, f"week_{y}.csv"))
         if ok:
             got.append(y)

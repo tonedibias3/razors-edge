@@ -201,6 +201,7 @@ tr:last-child td { border-bottom: 0; }
 .modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center; padding: 20px 12px; overflow-y: auto; }
 .modal-card { position: relative; background: var(--surface); color: var(--ink); border: 1px solid var(--axis); border-radius: 12px; width: 100%; max-width: 780px; padding: 18px 18px 16px; outline: none; }
 .modal-x { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; padding: 0; font-size: 14px; }
+.modal td .sub { display: inline; margin-left: 4px; }
 .modal h2 { margin: 0 44px 2px 0; font-size: 22px; }
 .chart { width: 100%; height: auto; display: block; margin: 10px 0 4px; }
 .chart text { font-family: inherit; font-size: 11px; fill: var(--ink2); }
@@ -236,7 +237,7 @@ input.proj-in[type="number"] { height: 30px; width: 72px; border-radius: 6px; te
 #p-table { min-width: 800px; }
 .mini .short, .hl .short { display: none; }
 @media (max-width: 520px) {
-  #p-body th.gm, #p-body td.gm, #p-body th.fl, #p-body td.fl, #z-slip .gm, #z-slip .fl, #z-table .gm, #z-table .fl, #l-table td .sub.fl { display: none; }
+  #p-body th.gm, #p-body td.gm, #p-body th.fl, #p-body td.fl, #z-slip .gm, #z-slip .fl, #z-table .gm, #z-table .fl, #l-table td .sub.fl, #ts-table .fl { display: none; }
   #p-body table, #z-slip table, #z-table { font-size: 14px; min-width: 0; }
   #p-body td, #p-body th, #z-slip td, #z-slip th, #z-table td, #z-table th { padding: 8px 4px; }
   #z-slip input.proj-in[type="number"], #z-table input.proj-in[type="number"] { width: 56px; }
@@ -248,6 +249,8 @@ input.proj-in[type="number"] { height: 30px; width: 72px; border-radius: 6px; te
   .chart text { font-size: 14px; }
   .modal-card { padding: 14px 12px; }
   .modal td { white-space: normal; padding: 8px 4px; }
+  .modal td .sub { display: block; }
+  .modal th.fl, .modal td.fl { display: none; }
   .modal .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini .short, .hl .short { display: inline; }
 }
@@ -348,6 +351,7 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
     <button type="button" role="tab" id="tab-def" class="chip" aria-selected="false" aria-controls="view-def">Defenses</button>
     <button type="button" role="tab" id="tab-top" class="chip" aria-selected="false" aria-controls="view-top">Top hit rates</button>
     <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="false" aria-controls="view-tease">Lines &amp; teasers</button>
+    <button type="button" role="tab" id="tab-teams" class="chip" aria-selected="false" aria-controls="view-teams">Teams</button>
     <button type="button" role="tab" id="tab-proj" class="chip" aria-selected="false" aria-controls="view-proj">DFS</button>
   </nav>
 
@@ -570,6 +574,16 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
     </div>
   </div>
 
+  <div class="view" id="view-teams" role="tabpanel" aria-labelledby="tab-teams" hidden>
+    <section class="controls pc" aria-label="Team stats settings">
+      <div class="field"><span class="lbl" id="ts-side-l">Show</span><div class="chips" id="ts-side" role="group" aria-labelledby="ts-side-l"></div></div>
+      <div class="field"><label class="lbl" for="ts-win">Games</label><select id="ts-win"><option value="0">This season</option><option value="3">Last 3 games</option><option value="5">Last 5 games</option></select></div>
+    </section>
+    <p class="tiles-head" id="ts-head" style="margin:0"></p>
+    <section class="panel" aria-label="Team yardage"><div class="tablewrap" style="margin-top:0"><table id="ts-table"></table></div></section>
+    <p class="notes" id="ts-notes">Yards per game, with the league rank next to it. For defenses, 1st means the fewest yards allowed (green); for offenses, 1st means the most (green). Passing yards are net of sacks, the way the NFL lists team passing and total yards, so pass plus rush equals total. A defense's numbers are what opponents gained against it. Tap a team for its spread and over/under record, head-to-head and game-by-game numbers. The numbers update every week when the site rebuilds.</p>
+  </div>
+
   <div class="view" id="view-proj" role="tabpanel" aria-labelledby="tab-proj" hidden>
     <section class="controls pc" aria-label="Load a DraftKings slate">
       <div class="field">
@@ -649,6 +663,12 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
     <div id="pc-body"></div>
   </div>
 </div>
+<div class="modal" id="ac-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ac-title" tabindex="-1" style="max-width:420px;margin-top:12vh">
+    <button type="button" class="mini modal-x" id="ac-close" aria-label="Close">✕</button>
+    <div id="ac-body"></div>
+  </div>
+</div>
 <div class="tip" id="tip" hidden></div>
 <div class="drawer-back" id="sv-back" hidden></div>
 <aside class="drawer" id="sv" role="dialog" aria-modal="true" aria-labelledby="sv-title" tabindex="-1" hidden>
@@ -662,6 +682,39 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
 const DATA = /*__DATA__*/;
 const DFS = /*__DFS__*/;
 const DKDEFAULT = /*__DKDEFAULT__*/;
+// ---------- Team offense and defense yardage (per game, this season) ----------
+const ordn = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+const TS = (() => {
+  const rows = DATA.tstats || [], SEAS = DATA.season;
+  const byGame = new Map(rows.map((r) => [r[0] + "|" + r[1] + "|" + r[2], r]));
+  const score = new Map();
+  for (const r of DATA.sched) if (r[0] === SEAS && r[5] !== null) { score.set(r[1] + "|" + r[3], [r[8], r[9]]); score.set(r[1] + "|" + r[4], [r[9], r[8]]); }
+  const teams = [...new Set(rows.filter((r) => r[0] === SEAS).map((r) => r[2]))];
+  function one(t, last) {
+    let g = rows.filter((r) => r[0] === SEAS && r[2] === t).sort((a, b) => a[1] - b[1]);
+    if (last) g = g.slice(-last);
+    const o = { pass: 0, rush: 0, pts: 0 }, d = { pass: 0, rush: 0, pts: 0 };
+    let n = 0;
+    for (const r of g) {
+      const opp = byGame.get(SEAS + "|" + r[1] + "|" + r[3]), sc = score.get(r[1] + "|" + t);
+      if (!opp || !sc) continue;
+      n++; o.pass += r[4]; o.rush += r[5]; o.pts += sc[0]; d.pass += opp[4]; d.rush += opp[5]; d.pts += sc[1];
+    }
+    const f = (x) => (n ? Math.round((x / n) * 10) / 10 : null), mk = (z) => ({ pass: f(z.pass), rush: f(z.rush), total: f(z.pass + z.rush), pts: f(z.pts) });
+    return { team: t, n, off: mk(o), def: mk(d) };
+  }
+  // every team, with ranks: offense 1 = most, defense 1 = fewest allowed
+  function table(last) {
+    const all = teams.map((t) => one(t, last)).filter((x) => x.n);
+    for (const k of ["pass", "rush", "total", "pts"]) {
+      const so = [...all].sort((a, b) => b.off[k] - a.off[k]), sd = [...all].sort((a, b) => a.def[k] - b.def[k]);
+      so.forEach((x, i) => { (x.ro = x.ro || {})[k] = i + 1; });
+      sd.forEach((x, i) => { (x.rd = x.rd || {})[k] = i + 1; });
+    }
+    return all;
+  }
+  return { table, teams, ok: teams.length > 0 };
+})();
 // Shade a table cell blue when v>0 (over) or orange when v<0 (under); v runs from -1 to 1.
 const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:color-mix(in srgb, var(${v > 0 ? "--over" : "--under"}) ${Math.min(42, Math.round(Math.abs(v) * 42))}%, transparent)"`);
 
@@ -1229,7 +1282,7 @@ const Saved = (() => {
     const s = STATS[S.stat], idx = s.idx, line = S.line, all = sample();
     const fam = defFamily(S.pos, S.stat);
     const rangeLabel = ranges.find((r) => r.v === S.range).label;
-    el.head.innerHTML = `<h2>${esc(nm(S.team))}</h2><p class="meta">defense · ${esc(rangeLabel)}</p>`;
+    el.head.innerHTML = `<h2>${esc(nm(S.team))}</h2><p class="meta">defense · ${esc(rangeLabel)}${TS.ok ? ` · <button type="button" class="linkbtn" data-tstats="${S.team}">Yards allowed, rankings and trends</button>` : ""}</p>`;
     const mine = all.filter((r) => r[3] === S.team);
     const lg = summarize(all, idx, line), m = summarize(mine, idx, line);
     if (!m.n) {
@@ -1293,6 +1346,7 @@ const Saved = (() => {
   el.range.addEventListener("change", () => { S.range = +el.range.value; render(); });
   el.top.addEventListener("change", () => { S.top = +el.top.value; render(); });
   el.reg.addEventListener("change", () => { S.reg = el.reg.checked; render(); });
+  el.head.addEventListener("click", (e) => { const b = e.target.closest("[data-tstats]"); if (b && RE.openTeam) RE.openTeam(b.dataset.tstats); });
   el.rank.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-def]");
     if (b) { S.team = b.dataset.def; el.team.value = S.team; render(); }
@@ -1317,7 +1371,7 @@ const Saved = (() => {
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   // tabs
-  const tabs = { players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], proj: [$("tab-proj"), $("view-proj")] };
+  const tabs = { players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")] };
   function show(k) {
     for (const [key, [t, v]] of Object.entries(tabs)) {
       t.setAttribute("aria-selected", String(key === k));
@@ -1550,8 +1604,40 @@ const Saved = (() => {
     if (!b) return;
     const [away, home, type, team] = b.dataset.pick.split("|");
     const g = D.sched.find((r) => r[0] === SEASON && r[1] === S.week && r[3] === away && r[4] === home);
-    if (g) Saved.togglePick(pickObj(g, type, team));
+    if (!g) return;
+    if (type === "spread") openAct(g, team); else Saved.togglePick(pickObj(g, type, team));
   });
+  // tap a spread: save the pick, add it to the teaser, or look at the team
+  let act = null;
+  function openAct(g, team) {
+    act = { g, team };
+    const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1]), on = picked(g, "spread", team);
+    const n = S.legs.length;
+    $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>` +
+      `<div style="display:grid;gap:8px;margin-top:10px">` +
+      `<button type="button" class="chip ${on ? "" : "primary"}" data-ac="save">${on ? "★ Saved. Tap to remove" : "☆ Save this pick"}</button>` +
+      `<button type="button" class="chip ${inSlip ? "" : "primary"}" data-ac="tease">${inSlip ? "Remove from teaser" : `+ Add to teaser (${S.pts} pts → ${spr(Math.round((line + S.pts) * 10) / 10)})`}</button>` +
+      `<button type="button" class="chip" data-ac="team">${esc(team)} trends and stats</button></div>` +
+      `<p class="notes" id="ac-msg" style="margin-top:10px">${n ? `Your teaser has ${n} leg${n > 1 ? "s" : ""}.` : "Your teaser is empty."}${S.msg ? " " + esc(S.msg) : ""} <button type="button" class="linkbtn" data-ac="view">View teaser</button></p>`;
+    $("ac-modal").hidden = false;
+    $("ac-modal").querySelector(".modal-card").focus();
+  }
+  $("ac-modal").addEventListener("click", (e) => {
+    if (e.target === $("ac-modal")) { $("ac-modal").hidden = true; return; }
+    const b = e.target.closest("[data-ac]");
+    if (!b || !act) return;
+    const { g, team } = act, k = b.dataset.ac;
+    if (k === "save") { Saved.togglePick(pickObj(g, "spread", team)); openAct(g, team); }
+    else if (k === "tease") {
+      const i = S.legs.findIndex((l) => l.team === team && l.week === g[1]);
+      if (i >= 0) { S.legs.splice(i, 1); S.msg = ""; } else { S.msg = ""; addLeg(team, g[1], sideLine(g, team)); }
+      openAct(g, team);
+    }
+    else if (k === "team") { $("ac-modal").hidden = true; openTeam(team); }
+    else if (k === "view") { $("ac-modal").hidden = true; S.mode = "tease"; S.week = g[1]; render(); }
+  });
+  $("ac-close").addEventListener("click", () => { $("ac-modal").hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("ac-modal").hidden) $("ac-modal").hidden = true; });
   Saved.on(() => { if (S.mode === "lines") renderLines(); });
 
   // ---- team trends pop-up: how a team has done against the spread and the total ----
@@ -1576,19 +1662,31 @@ const Saved = (() => {
     const n = d.length;
     return { n, c, m, cp, o, u, op, pf: n ? pf / n : null, pa: n ? pa / n : null, tt: n ? tt / n : null };
   }
+  let tmWin = 0, tmTeam = null;
+  const tsBlock = (team) => {
+    if (!TS.ok) return "";
+    const tb = TS.table(tmWin), r = tb.find((x) => x.team === team);
+    if (!r) return "";
+    const c = (v, rk) => (v === null ? "–" : `${v.toFixed(1)} <span class="sub" style="display:inline">${ordn(rk)}</span>`);
+    return `<h3 style="margin:12px 0 4px;font-size:14px">Yards per game</h3><div class="chips" style="margin-bottom:6px">` + [[0, "This season"], [3, "Last 3"], [5, "Last 5"]].map(([v, l]) => `<button type="button" class="chip" data-tmw="${v}" aria-pressed="${tmWin === v}">${l}</button>`).join("") + `</div>` +
+      `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th></th><th class="num">Offense</th><th class="num">Defense (allowed)</th></tr></thead><tbody>` +
+      [["total", "Total yards"], ["pass", "Passing yards"], ["rush", "Rushing yards"], ["pts", "Points"]].map(([k, l]) => `<tr><td>${l}</td><td class="num">${c(r.off[k], r.ro[k])}</td><td class="num">${c(r.def[k], r.rd[k])}</td></tr>`).join("") +
+      `</tbody></table></div><p class="notes" style="margin:6px 0 0">${r.n} game${r.n === 1 ? "" : "s"}. Offense: 1st is the most. Defense: 1st is the fewest allowed. Passing is net of sacks.</p>`;
+  };
   function openTeam(team) {
+    tmTeam = team;
     const all = teamRows(team).filter((x) => x.season >= 2023), done = all.filter((x) => x.done);
     const win = (rows) => tally(rows);
-    const rec = (t) => !t.n ? "–" : `${t.c}-${t.m}${t.cp ? "-" + t.cp : ""} <span class="sub" style="display:inline">${pct(t.c / (t.c + t.m || 1))}</span>`;
-    const ou = (t) => !t.n ? "–" : `${t.o}-${t.u}${t.op ? "-" + t.op : ""} <span class="sub" style="display:inline">${pct(t.o / (t.o + t.u || 1))}</span>`;
+    const rec = (t) => !t.n ? "–" : `${t.c}-${t.m}${t.cp ? "-" + t.cp : ""} <span class="sub">${pct(t.c / (t.c + t.m || 1))}</span>`;
+    const ou = (t) => !t.n ? "–" : `${t.o}-${t.u}${t.op ? "-" + t.op : ""} <span class="sub">${pct(t.o / (t.o + t.u || 1))}</span>`;
     const f1 = (v) => (v === null ? "–" : v.toFixed(1));
     const ws = [["This season", done.filter((x) => x.season === SEASON)], ["Last 5", done.slice(-5)], ["Last 10", done.slice(-10)], ["Last season", done.filter((x) => x.season === SEASON - 1)], [`Since 2023`, done],
       ["Home", done.filter((x) => x.home)], ["Away", done.filter((x) => !x.home)], ["As favorite", done.filter((x) => x.line < 0)], ["As underdog", done.filter((x) => x.line > 0)]];
     const nx = all.find((x) => !x.done && x.season === SEASON);
-    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${teamPill(team)} · against the spread and the total since 2023 · pushes counted separately</p>` +
+    $("tm-body").innerHTML = `<h2 id="tm-title">${esc(TEAM_NAMES[team] || team)}</h2><p class="meta">${teamPill(team)} · stats, then the spread and total since 2023 (pushes counted separately)</p>` + tsBlock(team) +
       (nx ? `<p class="notes" style="margin:6px 0">Next: ${nx.home ? "vs" : "at"} ${esc(nx.opp)}, week ${nx.week}, spread ${spr(nx.line)}, total ${nx.total}. <button type="button" class="mini" data-h2h="${team}|${nx.opp}">Head to head vs ${esc(nx.opp)}</button></p>` : "") +
-      `<div class="tablewrap"><table><thead><tr><th>Window</th><th class="num">Games</th><th class="num">Spread (W-L)</th><th class="num">Total (O-U)</th><th class="num fl">Pts for</th><th class="num fl">Pts against</th><th class="num fl">Avg total</th></tr></thead><tbody>` +
-      ws.map(([l, r]) => { const t = win(r); return `<tr><td>${l}</td><td class="num">${t.n}</td><td class="num">${rec(t)}</td><td class="num">${ou(t)}</td><td class="num fl">${f1(t.pf)}</td><td class="num fl">${f1(t.pa)}</td><td class="num fl">${f1(t.tt)}</td></tr>`; }).join("") + `</tbody></table></div>` +
+      `<div class="tablewrap"><table><thead><tr><th>Window</th><th class="num fl">Games</th><th class="num">Spread (W-L)</th><th class="num">Total (O-U)</th><th class="num fl">Pts for</th><th class="num fl">Pts against</th><th class="num fl">Avg total</th></tr></thead><tbody>` +
+      ws.map(([l, r]) => { const t = win(r); return `<tr><td>${l}${t.n ? `<span class="sub" style="display:block;margin:0">${t.n} games</span>` : ""}</td><td class="num fl">${t.n}</td><td class="num">${rec(t)}</td><td class="num">${ou(t)}</td><td class="num fl">${f1(t.pf)}</td><td class="num fl">${f1(t.pa)}</td><td class="num fl">${f1(t.tt)}</td></tr>`; }).join("") + `</tbody></table></div>` +
       `<h3 style="margin:14px 0 4px;font-size:14px">Last 10 games</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Game</th><th class="num">Spread</th><th class="num">Score</th><th>Spread result</th><th class="num">Total</th><th>Total result</th></tr></thead><tbody>` +
       done.slice(-10).reverse().map((x) => {
         const a = x.pf - x.pa + x.line, t = x.pf + x.pa - x.total;
@@ -1624,11 +1722,12 @@ const Saved = (() => {
     $("tm-modal").hidden = false;
     $("tm-modal").querySelector(".modal-card").focus();
   }
-  $("tm-body").addEventListener("click", (e) => { const h = e.target.closest("[data-h2h]"); if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); } });
+  $("tm-body").addEventListener("click", (e) => { const w = e.target.closest("[data-tmw]"); if (w) { tmWin = +w.dataset.tmw; openTeam(tmTeam); return; } const h = e.target.closest("[data-h2h]"); if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); } });
   const closeTeam = () => { $("tm-modal").hidden = true; };
   $("tm-close").addEventListener("click", closeTeam);
   $("tm-modal").addEventListener("click", (e) => { if (e.target === $("tm-modal")) closeTeam(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("tm-modal").hidden) closeTeam(); });
+  RE.openTeam = openTeam;
   RE.showLines = (week) => { S.mode = "lines"; if (weeks.includes(week)) S.week = week; render(); };
   function render() {
     $("z-mode").innerHTML = [["lines", "Lines"], ["tease", "Teasers"]].map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("");
@@ -2071,6 +2170,34 @@ const Saved = (() => {
     apply();
   });
   apply();
+})();
+
+// ---------- Teams tab: offense and defense yardage ----------
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  if (!TS.ok) { $("tab-teams").hidden = true; return; }
+  const T = { side: "def", last: 0, sort: "total" };
+  const nm = (t) => TEAM_NAMES[t] || t;
+  const COLS = [["total", "Total"], ["pass", "Pass"], ["rush", "Rush"], ["pts", "Points"]];
+  const rkBg = (rank, of) => { const soft = 1 - (rank - 1) / (of - 1); const d = Math.abs(soft - 0.5) * 2; return d < 0.15 ? "" : ` style="background:color-mix(in srgb, var(${soft > 0.5 ? "--accent" : "--bad"}) ${Math.round(8 + d * 26)}%, transparent)"`; };
+  function render() {
+    $("ts-side").innerHTML = [["def", "Defenses"], ["off", "Offenses"]].map(([k, l]) => `<button type="button" class="chip" data-side="${k}" aria-pressed="${T.side === k}">${l}</button>`).join("");
+    const rows = TS.table(T.last), rk = T.side === "off" ? "ro" : "rd", val = T.side === "off" ? "off" : "def";
+    rows.sort((a, b) => a[rk][T.sort] - b[rk][T.sort] || a.team.localeCompare(b.team));
+    const unit = (k) => (k === "pts" ? "pts/game" : "yds/game");
+    $("ts-head").textContent = `${T.side === "def" ? "Defenses: yards and points allowed" : "Offenses: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : DATA.season + " season"} · ${rows.length} teams`;
+    $("ts-table").innerHTML = `<thead><tr><th class="num">#</th><th>Team</th>` + COLS.map(([k, l]) => `<th class="num"><button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${T.sort === k}">${l}</button></th>`).join("") + `<th class="num fl">Games</th></tr></thead><tbody>` +
+      rows.map((r, i) => `<tr><td class="num">${i + 1}</td><td><button type="button" class="tmpill" data-team="${r.team}" aria-label="Open ${esc(nm(r.team))} stats">${teamPill(r.team)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
+        COLS.map(([k]) => `<td class="num"${rkBg(r[rk][k], rows.length)} title="${unit(k)}"><strong>${r[val][k].toFixed(1)}</strong><span class="sub">${ordn(r[rk][k])}</span></td>`).join("") + `<td class="num fl">${r.n}</td></tr>`).join("") + "</tbody>";
+  }
+  $("ts-side").addEventListener("click", (e) => { const b = e.target.closest("button[data-side]"); if (b) { T.side = b.dataset.side; render(); } });
+  $("ts-win").addEventListener("change", (e) => { T.last = +e.target.value; render(); });
+  $("ts-table").addEventListener("click", (e) => {
+    const s = e.target.closest("button[data-sort]"); if (s) { T.sort = s.dataset.sort; render(); return; }
+    const t = e.target.closest("[data-team]"); if (t && RE.openTeam) RE.openTeam(t.dataset.team);
+  });
+  render();
 })();
 
 // ---------- Saved drawer ----------

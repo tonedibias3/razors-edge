@@ -109,7 +109,18 @@ def _n(v):
     return None if pd.isna(v) else float(v)
 sched_rows = [[int(r.season), int(r.week), str(r.gameday), r.away_team, r.home_team, _n(r.result), _n(r.spread_line), _n(r.total_line), _n(r.away_score), _n(r.home_score), ("" if pd.isna(r.gametime) else str(r.gametime))] for r in sg.itertuples()]
 
+# Team yardage per game (offense; a defense's numbers are its opponent's offense in the same game).
+# Pass yards are NET of sacks (gross minus sack yards), the way the NFL lists team passing and total yards.
+tstats = []
+for f in sorted(glob.glob("team_*.csv")):
+    t = pd.read_csv(f, usecols=["season", "week", "team", "season_type", "opponent_team", "passing_yards", "sack_yards_lost", "rushing_yards", "attempts", "carries", "sacks_suffered"], low_memory=False)
+    t = t[t["season_type"] == "REG"].dropna(subset=["opponent_team"])
+    for r in t.itertuples():
+        tstats.append([int(r.season), int(r.week), r.team, r.opponent_team, int(r.passing_yards - r.sack_yards_lost), int(r.rushing_yards), int(r.attempts), int(r.carries), int(r.sacks_suffered)])
+print("team-game rows:", len(tstats))
+
 out = {
+    "tstats": tstats,
     "season": int(df["season"].max()),
     "through_week": int(latest[latest["stype"] == 0]["week"].max()),
     "players": players,
