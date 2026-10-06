@@ -32,6 +32,8 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Download data, rebuild projections and the page
         run: python pipeline/run_all.py
+        env:
+          CFBD_API_KEY: ${{ secrets.CFBD_API_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

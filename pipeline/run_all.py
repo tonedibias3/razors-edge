@@ -15,7 +15,7 @@ def run(script, cwd=WORK):
 
 
 run("fetch.py")
-for s in ["prep_data.py", "dk.py", "backtest.py", "finalize.py", "dvp_table.py", "logs.py"]:
+for s in ["prep_data.py", "college.py", "dk.py", "backtest.py", "finalize.py", "dvp_table.py", "logs.py"]:
     run(s)
 run("build_page.py")
 subprocess.run(["node", os.path.join(os.path.dirname(HERE), "tests", "smoke_test.js")], check=True)

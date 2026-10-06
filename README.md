@@ -22,3 +22,6 @@ You can also just load a CSV on the page itself. That works instantly but only i
 pip install -r requirements.txt
 python pipeline/run_all.py
 ```
+
+## College football (optional)
+Lines and teasers only (FBS). It needs a free key from CollegeFootballData.com stored as a repository secret named `CFBD_API_KEY` (GitHub: Settings, Secrets and variables, Actions). Without the key the page simply shows NFL only. The key is read from the secret during the build and is never written into the page.
