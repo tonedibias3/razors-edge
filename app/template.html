@@ -105,7 +105,11 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { height: 42px; padding: 0 14px; border: 1px solid var(--axis); background: var(--surface); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
-#lg-sw, .tabs, #z-mode { display: none !important; }
+#lg-sw, .tabs { display: none !important; }
+#z-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 0 14px; }
+#z-mode .chip { height: 46px; border-radius: 0; font-size: 16px; font-weight: 700; justify-content: center; }
+#z-mode .chip:first-child { border-radius: 12px 0 0 12px; }
+#z-mode .chip:last-child { border-radius: 0 12px 12px 0; border-left-width: 0; }
 #top-bar { margin: 4px 0 12px; }
 .lbar .lf.games { grid-column: 1 / -1; order: -1; }
 .fscore { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.2; }
@@ -1747,7 +1751,8 @@ const Saved = (() => {
   }
   const legStat = (l, pts) => (lt(l) === "spread" ? legStats(TG, l.line, pts) : totStats(isTeamTot(lt(l)) ? ttRows() : gtRows(), isOv(lt(l)), l.line, pts));
   const tb = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${tp(t)}</button>`;
-  const legName = (l) => (lt(l) === "spread" ? `<strong>${tb(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${tb(l.opp)} · wk ${l.week}</span>` :
+  const roleTxt = (line, home, opp) => `<span class="${line > 0 ? "pos" : line < 0 ? "neg" : ""}">${line > 0 ? "Getting " + Math.abs(line) : line < 0 ? "Laying " + Math.abs(line) : "Pick’em"}</span> · ${home ? "vs" : "at"} ${esc(opp)}`;
+  const legName = (l) => (lt(l) === "spread" ? `<strong>${tb(l.team)}</strong><span class="sub">${roleTxt(l.line, l.home, l.opp)} · wk ${l.week}</span>` :
     isTeamTot(lt(l)) ? `<strong>${tb(l.team)} ${isOv(lt(l)) ? "over" : "under"}</strong><span class="sub">team total · ${l.home ? "vs" : "at"} ${tb(l.opp)} · wk ${l.week}</span>` :
     `<strong>${isOv(lt(l)) ? "Over" : "Under"}</strong><span class="sub">game total · ${tb(l.opp)} at ${tb(l.team)} · wk ${l.week}</span>`);
   const legRes = (l) => { if (l.res === null || l.res === undefined) return ""; const x = legWin(l, S.pts, l.res); return x > 0 ? `<span class="res ok">Covered by ${r1(x)}</span>` : x === 0 ? `<span class="res">Push</span>` : `<span class="res no">Missed by ${r1(-x)}</span>`; };
@@ -2089,8 +2094,8 @@ const Saved = (() => {
     const zh = (k, label) => { const on = S.sort === k, ar = !on ? "" : k === "tease" ? (S.dir > 0 ? " ↑" : " ↓") : (S.dir > 0 ? " ↓" : " ↑"); return `<button type="button" class="linkbtn" data-zs="${k}" aria-pressed="${on}" title="Click to sort, click again to flip">${label}${ar}</button>`; };
     $("z-table").innerHTML = `<thead><tr><th>Team</th><th class="num">Line</th><th class="num">${zh("tease", "Teased")}</th><th class="gm">Crosses</th><th class="num">${zh("cover", `<span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span>`)}</th><th class="num fl">${zh("last", "Team last 10")}</th><th></th></tr></thead><tbody>` + rows.map((r) => {
       const inSlip = S.legs.some((l) => l.team === r.team && l.week === S.week && lt(l) === "spread");
-      return `<tr class="${inSlip ? "mine" : ""}"><td><strong>${tb(r.team)}</strong><span class="sub">${r.home ? "vs" : "at"} ${tb(r.opp)}</span>${resultCell(r.res, r.line, S.pts) ? `<span class="sub">${resultCell(r.res, r.line, S.pts)}</span>` : ""}</td>` +
-        `<td class="num">${lineIn(r.k, r.line, "Line for " + r.team)}</td><td class="num"><strong>${sl(r.line + S.pts)}</strong></td><td class="gm">${crosses(r.line, S.pts)}</td>` +
+      return `<tr class="${inSlip ? "mine" : ""}"><td><strong>${tb(r.team)}</strong><span class="sub">${roleTxt(r.line, r.home, r.opp)}</span>${resultCell(r.res, r.line, S.pts) ? `<span class="sub">${resultCell(r.res, r.line, S.pts)}</span>` : ""}</td>` +
+        `<td class="num">${lineIn(r.k, r.line, "Line for " + r.team)}</td><td class="num"><strong class="${r.line + S.pts > 0 ? "pos" : r.line + S.pts < 0 ? "neg" : ""}">${sl(r.line + S.pts)}</strong></td><td class="gm">${crosses(r.line, S.pts)}</td>` +
         `<td class="num"${covTint(r.st.cover, need)}><strong>${pct(r.st.cover)}</strong><span class="sub">${r.st.n} games${r.st.width ? ", lines within " + r.st.width : ""}</span></td>` +
         `<td class="num fl">${recent(r.team, S.pts)}</td><td><button type="button" class="mini" data-add="${esc(r.team)}" ${inSlip ? "disabled" : ""}>${inSlip ? "Added" : "+ Add"}</button></td></tr>`;
     }).join("") + "</tbody>";
@@ -2982,8 +2987,6 @@ const Saved = (() => {
     if (!$("lg-sw").hidden && lgb.length) h += sel("tb-lg", "League", lgb.map((b) => [b.dataset.lg, b.textContent]), (lgb.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.lg);
     const tb = [...document.querySelectorAll(".tabs button")].filter((b) => !b.hidden);
     h += sel("tb-view", "View", tb.map((b) => [b.id, b.textContent]), (tb.find((b) => b.getAttribute("aria-selected") === "true") || {}).id);
-    const md = [...document.querySelectorAll("#z-mode button[data-mode]")];
-    if (md.length && $("tab-tease").getAttribute("aria-selected") === "true") h += sel("tb-mode", "Page", md.map((b) => [b.dataset.mode, b.textContent]), (md.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.mode);
     if (bar.dataset.h !== h) { bar.dataset.h = h; bar.innerHTML = h; }
   }
   bar.addEventListener("change", (e) => {
