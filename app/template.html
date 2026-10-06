@@ -1680,9 +1680,10 @@ const Saved = (() => {
     }
   }
   const legStat = (l, pts) => (lt(l) === "spread" ? legStats(TG, l.line, pts) : totStats(isTeamTot(lt(l)) ? ttRows() : gtRows(), isOv(lt(l)), l.line, pts));
-  const legName = (l) => (lt(l) === "spread" ? `<strong>${tp(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${tp(l.opp)} · wk ${l.week}</span>` :
-    isTeamTot(lt(l)) ? `<strong>${tp(l.team)} ${isOv(lt(l)) ? "over" : "under"}</strong><span class="sub">team total · ${l.home ? "vs" : "at"} ${tp(l.opp)} · wk ${l.week}</span>` :
-    `<strong>${isOv(lt(l)) ? "Over" : "Under"}</strong><span class="sub">game total · ${tp(l.opp)} at ${tp(l.team)} · wk ${l.week}</span>`);
+  const tb = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${tp(t)}</button>`;
+  const legName = (l) => (lt(l) === "spread" ? `<strong>${tb(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${tb(l.opp)} · wk ${l.week}</span>` :
+    isTeamTot(lt(l)) ? `<strong>${tb(l.team)} ${isOv(lt(l)) ? "over" : "under"}</strong><span class="sub">team total · ${l.home ? "vs" : "at"} ${tb(l.opp)} · wk ${l.week}</span>` :
+    `<strong>${isOv(lt(l)) ? "Over" : "Under"}</strong><span class="sub">game total · ${tb(l.opp)} at ${tb(l.team)} · wk ${l.week}</span>`);
   const legRes = (l) => { if (l.res === null || l.res === undefined) return ""; const x = legWin(l, S.pts, l.res); return x > 0 ? `<span class="res ok">Covered by ${r1(x)}</span>` : x === 0 ? `<span class="res">Push</span>` : `<span class="res no">Missed by ${r1(-x)}</span>`; };
   // Your Week 5 slip as a starting point. The lines are the ones your book showed before the teaser.
   [["PHI", 7], ["MIA", 7], ["TEN", 7], ["LAC", 3.5], ["NYG", 3.5], ["LV", 3.5]].forEach(([t, l]) => { if (weeks.includes(5)) addLeg(t, 5, l); });
@@ -1936,7 +1937,7 @@ const Saved = (() => {
     $("z-head").textContent = rows.length ? `Week ${S.week} · every team, with its line moved ${S.pts} points. Green means the history clears what your odds need.` : "No lines yet for this week. Pick another week.";
     $("z-table").innerHTML = `<thead><tr><th>Team</th><th class="num">Line</th><th class="num">Teased</th><th class="gm">Crosses</th><th class="num"><span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span></th><th class="num fl">Team last 10</th><th></th></tr></thead><tbody>` + rows.map((r) => {
       const inSlip = S.legs.some((l) => l.team === r.team && l.week === S.week && lt(l) === "spread");
-      return `<tr class="${inSlip ? "mine" : ""}"><td><strong>${tp(r.team)}</strong><span class="sub">${r.home ? "vs" : "at"} ${tp(r.opp)}</span>${resultCell(r.res, r.line, S.pts) ? `<span class="sub">${resultCell(r.res, r.line, S.pts)}</span>` : ""}</td>` +
+      return `<tr class="${inSlip ? "mine" : ""}"><td><strong>${tb(r.team)}</strong><span class="sub">${r.home ? "vs" : "at"} ${tb(r.opp)}</span>${resultCell(r.res, r.line, S.pts) ? `<span class="sub">${resultCell(r.res, r.line, S.pts)}</span>` : ""}</td>` +
         `<td class="num">${lineIn(r.k, r.line, "Line for " + r.team)}</td><td class="num"><strong>${sl(r.line + S.pts)}</strong></td><td class="gm">${crosses(r.line, S.pts)}</td>` +
         `<td class="num"${covTint(r.st.cover, need)}><strong>${pct(r.st.cover)}</strong><span class="sub">${r.st.n} games${r.st.width ? ", lines within " + r.st.width : ""}</span></td>` +
         `<td class="num fl">${recent(r.team, S.pts)}</td><td><button type="button" class="mini" data-add="${esc(r.team)}" ${inSlip ? "disabled" : ""}>${inSlip ? "Added" : "+ Add"}</button></td></tr>`;
@@ -1997,9 +1998,9 @@ const Saved = (() => {
     S.mode = "tease";
     render();
   };
-  $("z-table").addEventListener("click", (e) => { const b = e.target.closest("button[data-add]"); if (b) { addLeg(b.dataset.add, S.week, S.ov[key(b.dataset.add, S.week)]); render(); } });
+  $("z-table").addEventListener("click", (e) => { const tm = e.target.closest("[data-team]"); if (tm) { openTeam(tm.dataset.team); return; } const b = e.target.closest("button[data-add]"); if (b) { addLeg(b.dataset.add, S.week, S.ov[key(b.dataset.add, S.week)]); render(); } });
   $("z-table").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value); const k = i.dataset.line; if (Number.isFinite(v)) { S.ov[k] = v; const [t, w] = k.split("|"); S.legs.forEach((l) => { if (l.team === t && l.week === +w && lt(l) === "spread") l.line = v; }); } else delete S.ov[k]; render(); });
-  $("z-legs").addEventListener("click", (e) => { const b = e.target.closest("button[data-rmleg]"); if (b) { S.legs.splice(+b.dataset.rmleg, 1); S.msg = ""; render(); } });
+  $("z-legs").addEventListener("click", (e) => { const tm = e.target.closest("[data-team]"); if (tm) { openTeam(tm.dataset.team); return; } const b = e.target.closest("button[data-rmleg]"); if (b) { S.legs.splice(+b.dataset.rmleg, 1); S.msg = ""; render(); } });
   $("z-legs").addEventListener("change", (e) => { const i = e.target.closest("input[data-line]"); if (!i) return; const v = parseFloat(i.value), idx = +i.dataset.line.replace("leg", ""); if (Number.isFinite(v) && S.legs[idx]) { S.legs[idx].line = v; if (lt(S.legs[idx]) === "spread") S.ov[key(S.legs[idx].team, S.legs[idx].week)] = v; } render(); });
   $("z-cmp").addEventListener("change", (e) => { const i = e.target.closest("input[data-odds]"); if (!i) return; const v = parseInt(i.value, 10), k = S.legs.length + "|" + i.dataset.odds; if (Number.isFinite(v) && Math.abs(v) >= 100) S.odds[k] = v; else delete S.odds[k]; render(); });
   render();
