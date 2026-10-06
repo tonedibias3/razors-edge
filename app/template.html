@@ -105,6 +105,13 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { height: 42px; padding: 0 14px; border: 1px solid var(--axis); background: var(--surface); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+#lg-sw, .tabs, #z-mode { display: none !important; }
+#top-bar { margin: 4px 0 12px; }
+.lbar .lf.games { grid-column: 1 / -1; order: -1; }
+.fscore { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.2; }
+.fscore.lose { color: var(--ink2); font-weight: 500; }
+.fin { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); margin-left: 4px; }
+@media (max-width: 520px) { #l-table .fin { display: none; } }
 .lbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 8px; margin: 0 0 12px; }
 .lbar .lf { display: block; min-width: 0; }
 .lbar .lf.wide { grid-column: 1 / -1; }
@@ -388,8 +395,8 @@ html[data-look="paper"] h1 { font-size: 30px; letter-spacing: .02em; text-transf
 html[data-look="paper"] h1 span { color: var(--bad); }
 html[data-look="paper"] h2 { font-size: 20px; letter-spacing: 0; text-transform: none; font-weight: 400; }
 html[data-look="paper"] .top { border-bottom: 3px double var(--ink); }
-html[data-look="paper"] .controls, html[data-look="paper"] .panel, html[data-look="paper"] .tile, html[data-look="paper"] .stat, html[data-look="paper"] .est, html[data-look="paper"] .modal-card { border-radius: 2px; box-shadow: 1px 2px 0 rgba(70,55,25,.18); border-color: var(--axis); }
-html[data-look="paper"] .chip, html[data-look="paper"] .mini, html[data-look="paper"] input, html[data-look="paper"] select, html[data-look="paper"] textarea { border-radius: 2px; }
+html[data-look="paper"] .controls, html[data-look="paper"] .panel, html[data-look="paper"] .tile, html[data-look="paper"] .stat, html[data-look="paper"] .est, html[data-look="paper"] .modal-card { border-radius: 14px; box-shadow: 1px 2px 0 rgba(70,55,25,.18); border-color: var(--axis); }
+html[data-look="paper"] .chip, html[data-look="paper"] .mini, html[data-look="paper"] input, html[data-look="paper"] select, html[data-look="paper"] textarea { border-radius: 10px; }
 html[data-look="paper"] .chip { background: transparent; border-color: var(--axis); font-family: var(--font-body); }
 html[data-look="paper"] .chip[aria-pressed="true"], html[data-look="paper"] .chip[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 html[data-look="paper"] .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
@@ -445,6 +452,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     </div>
   </header>
 
+  <div class="lbar" id="top-bar"></div>
   <div class="chips" id="lg-sw" role="group" aria-label="League" style="margin:0 0 8px" hidden></div>
   <nav class="tabs" role="tablist" aria-label="Views">
     <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="true" aria-controls="view-tease">Lines &amp; teasers</button>
@@ -1785,7 +1793,7 @@ const Saved = (() => {
       const CF = [["p4t25", "Power 4 + Top 25", (g) => any(g, p4) || any(g, rkOf)], ["top25", "Top 25", (g) => any(g, rkOf)], ["p4", "Power 4", (g) => any(g, p4)], ["g5", "Group of 5", (g) => any(g, (t) => !p4(t))], ["all", "All FBS", () => true]];
       const confs = [...new Set(allG0.flatMap((g) => [cf(g[3]), cf(g[4])]).filter(Boolean))].sort();
       const cur = S.cf.startsWith("conf:") ? S.cf.slice(5) : "";
-      gamesSel = `<label class="lf"><span class="lbl">Games</span><select id="l-gm" aria-label="Which games">${CF.map(([k, l, f]) => `<option value="${k}" ${S.cf === k ? "selected" : ""}>${l} (${allG0.filter(f).length})</option>`).join("")}<optgroup label="One conference">${confs.map((c) => `<option value="conf:${esc(c)}" ${c === cur ? "selected" : ""}>${esc(c)} (${allG0.filter((g) => any(g, (t) => cf(t) === c)).length})</option>`).join("")}</optgroup></select></label>`;
+      gamesSel = `<label class="lf games"><span class="lbl">Games</span><select id="l-gm" aria-label="Which games">${CF.map(([k, l, f]) => `<option value="${k}" ${S.cf === k ? "selected" : ""}>${l} (${allG0.filter(f).length})</option>`).join("")}<optgroup label="One conference">${confs.map((c) => `<option value="conf:${esc(c)}" ${c === cur ? "selected" : ""}>${esc(c)} (${allG0.filter((g) => any(g, (t) => cf(t) === c)).length})</option>`).join("")}</optgroup></select></label>`;
       allG = allG0.filter(cur ? (g) => any(g, (t) => cf(t) === cur) : (CF.find((x) => x[0] === S.cf) || CF[4])[2]);
     }
     const BANDS = [["any", "Any spread", () => true], ["s3", "Up to 3", (v) => v <= 3], ["s6", "3.5 to 6.5", (v) => v >= 3.5 && v <= 6.5], ["s9", "7 to 9.5", (v) => v >= 7 && v <= 9.5], ["s10", "10 or more", (v) => v >= 10]];
@@ -1822,7 +1830,7 @@ const Saved = (() => {
       if (S.ls === "time" && gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
-      html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? g[8] + " final" : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? g[9] + " final" : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
+      html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
         `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
@@ -2936,5 +2944,32 @@ const Saved = (() => {
   let lg = "nfl";
   try { if (localStorage.getItem("re-league") === "cfb") lg = "cfb"; } catch (e) { /* storage not available */ }
   RE.switchLeague(lg);
+})();
+(function () {
+  const $ = (id) => document.getElementById(id), bar = $("top-bar");
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const sel = (id, label, opts, cur) => `<label class="lf"><span class="lbl">${label}</span><select id="${id}" aria-label="${label}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>`;
+  function sync() {
+    let h = "";
+    const lgb = [...document.querySelectorAll("#lg-sw button[data-lg]")];
+    if (!$("lg-sw").hidden && lgb.length) h += sel("tb-lg", "League", lgb.map((b) => [b.dataset.lg, b.textContent]), (lgb.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.lg);
+    const tb = [...document.querySelectorAll(".tabs button")].filter((b) => !b.hidden);
+    h += sel("tb-view", "View", tb.map((b) => [b.id, b.textContent]), (tb.find((b) => b.getAttribute("aria-selected") === "true") || {}).id);
+    const md = [...document.querySelectorAll("#z-mode button[data-mode]")];
+    if (md.length && $("tab-tease").getAttribute("aria-selected") === "true") h += sel("tb-mode", "Page", md.map((b) => [b.dataset.mode, b.textContent]), (md.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.mode);
+    if (bar.dataset.h !== h) { bar.dataset.h = h; bar.innerHTML = h; }
+  }
+  bar.addEventListener("change", (e) => {
+    const v = e.target.value;
+    if (e.target.id === "tb-lg") { const b = document.querySelector(`#lg-sw button[data-lg="${v}"]`); if (b) b.click(); }
+    else if (e.target.id === "tb-view") { const b = $(v); if (b) b.click(); }
+    else if (e.target.id === "tb-mode") { const b = document.querySelector(`#z-mode button[data-mode="${v}"]`); if (b) b.click(); }
+    setTimeout(sync, 0);
+  });
+  let q = 0;
+  const later = () => { if (!q) q = requestAnimationFrame(() => { q = 0; sync(); }); };
+  const mo = new MutationObserver(later);
+  for (const el of [document.querySelector(".tabs"), $("lg-sw"), $("z-mode")]) mo.observe(el, { attributes: true, subtree: true, childList: true });
+  sync();
 })();
 </script>
