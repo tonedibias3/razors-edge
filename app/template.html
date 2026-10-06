@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <title>Razor's Edge</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Bebas+Neue&family=Special+Elite&family=Caveat:wght@500;700&family=Reenie+Beanie&family=Nanum+Pen+Script&family=Kalam:wght@400;700&display=swap">
 <style>
 /* Layout: one working column. Controls on top, three hit-rate tiles, a game-by-game bar chart
    with the prop line drawn across it, then window and home/away tables and a game log.
@@ -191,7 +191,7 @@ th .linkbtn[aria-pressed="true"] { color: var(--ink); border-bottom: 2px solid v
 .two { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) { .two { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); } }
 .tablewrap { overflow-x: auto; margin-top: 10px; }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table { color: inherit; width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .tablewrap table { min-width: 340px; }
 #win { min-width: 520px; }
 th { text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink2); padding: 6px 10px; border-bottom: 1px solid var(--axis); white-space: nowrap; }
@@ -274,7 +274,7 @@ input[type="file"] { font-size: 14px; max-width: 100%; }
 /* Razor's Edge look: one green accent for chrome; blue and orange stay reserved for results */
 h1 span { color: var(--accent); }
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 2px solid var(--accent); }
-#theme-btn { height: 36px; font-size: 13px; white-space: nowrap; }
+#st-btn { height: 36px; font-size: 13px; white-space: nowrap; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .panel-head h2, details summary { border-left: 4px solid var(--accent); padding-left: 10px; }
 th .linkbtn[aria-pressed="true"] { border-bottom-color: var(--accent); }
@@ -332,6 +332,82 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
 .tmpill { background: none; border: 0; padding: 0; cursor: pointer; }
 .dr-foot textarea { width: 100%; font: 12px/1.3 monospace; }
 @media (max-width: 520px) { #l-table th, #l-table td { padding: 8px 2px; } #l-table .iml, #l-table .h2h { display: none; } #l-table { table-layout: fixed; width: 100%; min-width: 0; } #l-table th:nth-child(1), #l-table th:nth-child(4) { width: 17%; } #l-table th:nth-child(2), #l-table th:nth-child(3) { width: 24%; } #l-table th:nth-child(5) { width: 18%; } #l-table th { font-size: 10px; letter-spacing: 0; } #l-table .ou .mini { padding: 2px 5px; min-width: 0; min-height: 0; font-size: 11px; } #l-table td { white-space: nowrap; } #l-table tr.grp td { white-space: normal; } #l-table .cellbtn strong { font-size: 16px; } #l-table td.num { padding-right: 3px; } .top { flex-wrap: wrap; } .top .btns { justify-content: flex-start; } }
+
+/* ===== Looks (Settings): Classic is the default above. Card and Paper only change colors, fonts and borders. ===== */
+:root { --pos: var(--accent); --neg: var(--bad); --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive; --card-sh: transparent; --gold: var(--accent); }
+html[data-hand="reenie"] { --hand: "Reenie Beanie", "Segoe Print", cursive; }
+html[data-hand="nanum"] { --hand: "Nanum Pen Script", "Segoe Print", cursive; }
+html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
+.pos { color: var(--pos); font-weight: 700; }
+.neg { color: var(--neg); font-weight: 700; }
+
+/* The slip: handwriting on ruled paper, black ink, in every look */
+.slip { --ink: #1e1d1a; --ink2: #4b4a44; --muted: #77746a; --surface: #fcf8e8; --border: rgba(40,70,140,.24); --axis: rgba(40,70,140,.38); --hover: rgba(40,70,140,.08); --accent: #1f6f3a; --accent-ink: #fff; --accent-soft: rgba(31,111,58,.13); --bad: #b3261e; --pos: #1a7a35; --neg: #c1272d; --star: #a87a00; --shadow: 0 6px 20px rgba(40,30,10,.25);
+  color-scheme: light; color: var(--ink); font-family: var(--hand); font-size: 19px; line-height: 1.3;
+  background: #fcf8e8 repeating-linear-gradient(transparent 0 29px, rgba(60,90,160,.22) 29px 30px); }
+.slip h2, .slip h3, .slip .stat .v, .slip .lbl, .slip th, .slip .chip, .slip .mini, .slip .tm, .slip .sub, .slip .stat .k, .slip .stat .n, .slip .notes, .slip .res, .slip input, .slip button { font-family: var(--hand); }
+.slip h2 { text-transform: none; letter-spacing: 0; font-size: 28px; font-weight: 700; }
+.slip th, .slip .lbl, .slip .stat .k { text-transform: none; letter-spacing: 0; font-size: 16px; }
+.slip .stat .v { font-size: 30px; font-weight: 700; }
+.slip .sub, .slip .notes, .slip .stat .n, .slip .res { font-size: 16px; }
+.slip .chip, .slip .mini { font-size: 17px; font-weight: 700; }
+.slip .res.ok { color: var(--pos); } .slip .res.no { color: var(--neg); }
+.slip input[type="text"], .slip input[type="number"], .slip .proj-in { font-size: 19px; background: rgba(255,255,255,.55); }
+.slip .tablewrap, .slip table { background: transparent; }
+.drawer.slip { border-left: 3px double #1e1d1a; }
+.slip .stat, .slip .tile { background: #fcf8e8; }
+.svc { background: rgba(252,248,232,.92); }
+.svc.sel { background: var(--accent-soft); }
+.parlay { background: rgba(255,255,255,.4); }
+
+/* Paper look */
+html[data-look="paper"][data-theme] { color-scheme: light; --page: #ece3cb; --surface: #fbf6e6; --ink: #25231e; --ink2: #5b564a; --muted: #8b8572; --grid: #ddd2b4; --axis: #bfb393; --border: rgba(70,55,25,.24); --hover: rgba(70,55,25,.08); --shadow: 0 2px 0 rgba(70,55,25,.2);
+  --over: #2f62a3; --under: #c0592b; --push: #8b8572; --accent: #2f6b3d; --accent-ink: #fbf6e6; --accent-soft: rgba(47,107,61,.13); --star: #a87a00; --warn: #a15c00; --bad: #b3261e;
+  --font-display: "Special Elite", "Courier New", monospace; --font-body: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+html[data-look="paper"] body { background: var(--page) linear-gradient(90deg, transparent 0 calc(50% - 560px), rgba(179,38,30,.0) 0); font-size: 16px; }
+html[data-look="paper"] h1 { font-size: 30px; letter-spacing: .02em; text-transform: none; font-weight: 400; }
+html[data-look="paper"] h1 span { color: var(--bad); }
+html[data-look="paper"] h2 { font-size: 20px; letter-spacing: 0; text-transform: none; font-weight: 400; }
+html[data-look="paper"] .top { border-bottom: 3px double var(--ink); }
+html[data-look="paper"] .controls, html[data-look="paper"] .panel, html[data-look="paper"] .tile, html[data-look="paper"] .stat, html[data-look="paper"] .est, html[data-look="paper"] .modal-card { border-radius: 2px; box-shadow: 1px 2px 0 rgba(70,55,25,.18); border-color: var(--axis); }
+html[data-look="paper"] .chip, html[data-look="paper"] .mini, html[data-look="paper"] input, html[data-look="paper"] select, html[data-look="paper"] textarea { border-radius: 2px; }
+html[data-look="paper"] .chip { background: transparent; border-color: var(--axis); font-family: var(--font-body); }
+html[data-look="paper"] .chip[aria-pressed="true"], html[data-look="paper"] .chip[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+html[data-look="paper"] .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+html[data-look="paper"] th { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; }
+html[data-look="paper"] .panel-head h2, html[data-look="paper"] details summary { border-left: 0; padding-left: 0; text-decoration: underline; text-decoration-color: var(--bad); text-underline-offset: 4px; }
+html[data-look="paper"] tr.grp td { background: rgba(70,55,25,.1); }
+
+/* Sports card look */
+html[data-look="card"][data-theme="dark"] { --page: #0a1222; --surface: #13203a; --ink: #ffffff; --ink2: #b9c6dd; --muted: #7f8fae; --grid: #22345a; --axis: #3a5185; --border: rgba(160,185,235,.3); --hover: rgba(160,185,235,.1); --shadow: 0 10px 24px rgba(0,0,0,.55); --card-sh: rgba(0,0,0,.6); --gold: #ffc629; --accent-soft: rgba(63,207,142,.16); }
+html[data-look="card"][data-theme="light"] { --page: #dfe6f2; --surface: #ffffff; --ink: #0c1a33; --ink2: #44546f; --muted: #7a879c; --grid: #e1e7f1; --axis: #8fa2c4; --border: rgba(12,26,51,.35); --hover: rgba(12,26,51,.06); --shadow: 0 10px 24px rgba(12,26,51,.25); --card-sh: rgba(12,26,51,.28); --gold: #d59a00; }
+html[data-look="card"] { --font-display: "Bebas Neue", "Barlow Condensed", Impact, sans-serif; }
+html[data-look="card"] h1 { font-size: 40px; font-weight: 400; letter-spacing: .06em; }
+html[data-look="card"] h2 { font-size: 27px; font-weight: 400; letter-spacing: .05em; }
+html[data-look="card"] .top { border-bottom: 5px solid var(--gold); }
+html[data-look="card"] h1 span { color: var(--gold); }
+html[data-look="card"] .controls, html[data-look="card"] .panel, html[data-look="card"] .tile, html[data-look="card"] .stat, html[data-look="card"] .est, html[data-look="card"] .modal-card { border: 2px solid var(--axis); border-radius: 14px; box-shadow: 4px 4px 0 var(--card-sh); }
+html[data-look="card"] .panel-head h2, html[data-look="card"] details summary { border-left: 5px solid var(--gold); }
+html[data-look="card"] .chip { border: 2px solid var(--axis); border-radius: 999px; font-weight: 600; letter-spacing: .03em; }
+html[data-look="card"] .chip[aria-pressed="true"], html[data-look="card"] .chip[aria-selected="true"] { background: var(--gold); color: #14100a; border-color: var(--gold); }
+html[data-look="card"] .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+html[data-look="card"] .stat .v, html[data-look="card"] .t-num, html[data-look="card"] .est-num { font-weight: 400; letter-spacing: .02em; }
+html[data-look="card"] .stat .v { font-size: 34px; }
+html[data-look="card"] th { background: rgba(255,198,41,.12); }
+html[data-look="card"] tr.grp td { background: var(--gold); color: #14100a; }
+html[data-look="card"] .tm { border-radius: 4px; font-weight: 700; }
+html[data-look="card"] tr[style*="--tc"] > td:first-child { box-shadow: inset 6px 0 0 var(--tc); padding-left: 14px; }
+html[data-look="card"] tr[style*="--tc2"] > td.hm { box-shadow: inset -6px 0 0 var(--tc2); }
+html[data-look="card"] .modal-card { border-top: 10px solid var(--tc, var(--gold)); }
+html[data-look="card"] .drawer { border-left: 5px solid var(--gold); }
+html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* settings pop-up */
+.setrow { margin: 14px 0; }
+.setrow .lbl { margin-bottom: 8px; }
+.looks { display: grid; gap: 8px; }
+.looks button { text-align: left; height: auto; padding: 10px 14px; }
+.looks .d { display: block; font-size: 13px; font-weight: 400; opacity: .8; }
+.handprev { font-size: 22px; margin-top: 8px; }
 </style>
 
 <main class="wrap">
@@ -342,7 +418,7 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
     </div>
     <div class="btns">
       <button type="button" class="chip" id="sv-btn" aria-haspopup="dialog">★ Saved</button>
-      <button type="button" class="chip" id="theme-btn" aria-label="Switch between dark and light mode"></button>
+      <button type="button" class="chip" id="st-btn" aria-haspopup="dialog">⚙ Settings</button>
     </div>
   </header>
 
@@ -554,7 +630,7 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
       <div class="field"><span class="lbl" id="z-pts-l">Teaser points</span><div class="chips" id="z-pts" role="group" aria-labelledby="z-pts-l"></div></div>
       <div class="field"><label class="lbl" for="z-stake">Stake ($)</label><input id="z-stake" type="number" inputmode="decimal" min="1" step="1" value="25"></div>
     </section>
-    <section class="panel" id="z-slip" aria-label="Your teaser">
+    <section class="panel slip" id="z-slip" aria-label="Your teaser">
       <div class="panel-head"><h2>Your teaser</h2></div>
       <div class="stats" id="z-sum"></div>
       <div id="z-legs"></div>
@@ -669,9 +745,15 @@ tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; l
     <div id="ac-body"></div>
   </div>
 </div>
+<div class="modal" id="st-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="st-title" tabindex="-1" style="max-width:520px;margin-top:8vh">
+    <button type="button" class="mini modal-x" id="st-close" aria-label="Close settings">✕</button>
+    <div id="st-body"></div>
+  </div>
+</div>
 <div class="tip" id="tip" hidden></div>
 <div class="drawer-back" id="sv-back" hidden></div>
-<aside class="drawer" id="sv" role="dialog" aria-modal="true" aria-labelledby="sv-title" tabindex="-1" hidden>
+<aside class="drawer slip" id="sv" role="dialog" aria-modal="true" aria-labelledby="sv-title" tabindex="-1" hidden>
   <div class="dr-head"><h2 id="sv-title">Saved</h2><button type="button" class="mini" id="sv-close" aria-label="Close saved">✕</button></div>
   <div class="dr-tabs" id="sv-tabs" role="group" aria-label="Saved items"></div>
   <div class="dr-body" id="sv-body"></div>
@@ -683,6 +765,7 @@ const DATA = /*__DATA__*/;
 const DFS = /*__DFS__*/;
 const DKDEFAULT = /*__DKDEFAULT__*/;
 // ---------- Team offense and defense yardage (per game, this season) ----------
+const tcol = (t) => (TEAM_COLORS[dkTeam ? dkTeam(String(t || "")) : t] || TEAM_COLORS[t] || ["#888"])[0];
 const ordn = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 const TS = (() => {
   const rows = DATA.tstats || [], SEAS = DATA.season;
@@ -1121,6 +1204,7 @@ const Saved = (() => {
       gs.slice(-10).reverse().map((g) => `<tr><td>${g[0]} ${wkShort(g)} ${vsAt(g)} ${esc(g[4])}</td>` + cols.map(([, i]) => `<td class="num">${g[i]}</td>`).join("") + `</tr>`).join("") + `</tbody></table></div>` +
       `<p class="notes" style="margin-top:8px">Tap Open to put his page on that stat and line. The star saves it as an over prop.</p>`;
     $("pc-modal").hidden = false;
+    $("pc-modal").querySelector(".modal-card").style.setProperty("--tc", tcol(p.team));
     $("pc-modal").querySelector(".modal-card").focus();
   }
   const closeCard = () => { $("pc-modal").hidden = true; };
@@ -1565,8 +1649,10 @@ const Saved = (() => {
   const t12 = (t) => { if (!t) return ""; const [h, m] = t.split(":").map(Number); return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + " " + (h >= 12 ? "PM" : "AM"); };
   const dayName = (d) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
   const window_ = (d, t) => { const wd = new Date(d + "T12:00:00").getDay(), h = t ? +t.split(":")[0] + +t.split(":")[1] / 60 : 13; return wd === 0 ? (h < 12.5 ? "Morning" : h < 14.5 ? "Early" : h < 18 ? "Late" : "Night") : wd === 1 || wd === 4 ? "Night" : ""; };
-  const picked = (g, type, team) => Saved.hasPick({ season: SEASON, week: g[1], away: g[3], home: g[4], type, team: team || "", line: type === "spread" ? sideLine(g, team) : g[7] });
-  const pickObj = (g, type, team) => ({ season: SEASON, week: g[1], away: g[3], home: g[4], date: g[2], type, team: team || "", line: type === "spread" ? sideLine(g, team) : g[7] });
+  const pickLine = (g, type, team, line) => (line !== undefined ? line : type === "spread" ? sideLine(g, team) : g[7]);
+  const picked = (g, type, team, line) => Saved.hasPick({ season: SEASON, week: g[1], away: g[3], home: g[4], type, team: team || "", line: pickLine(g, type, team, line) });
+  const pickObj = (g, type, team, line) => ({ season: SEASON, week: g[1], away: g[3], home: g[4], date: g[2], type, team: team || "", line: pickLine(g, type, team, line) });
+  const impOf = (g, team) => (g[7] === null || g[6] === null ? null : g[4] === team ? (g[7] + g[6]) / 2 : (g[7] - g[6]) / 2);
   function renderLines() {
     $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " (upcoming)" : w < nextWeek ? " (played)" : ""}</option>`).join("");
     const allG = D.sched.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => (String(a[2]) + (a[10] || "")).localeCompare(String(b[2]) + (b[10] || "")));
@@ -1589,7 +1675,7 @@ const Saved = (() => {
       if (gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini" data-pick="${g[3]}|${g[4]}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
-      html += `<tr><td>${teamBtn(g[3])}<span class="sub">${fin ? g[8] + " final" : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td>${teamBtn(g[4])}<span class="sub">${fin ? g[9] + " final" : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
+      html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? g[8] + " final" : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? g[9] + " final" : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
         `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}<span class="ou h2h"><button type="button" class="mini" data-h2h="${g[3]}|${g[4]}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
@@ -1605,19 +1691,22 @@ const Saved = (() => {
     const [away, home, type, team] = b.dataset.pick.split("|");
     const g = D.sched.find((r) => r[0] === SEASON && r[1] === S.week && r[3] === away && r[4] === home);
     if (!g) return;
-    if (type === "spread") openAct(g, team); else Saved.togglePick(pickObj(g, type, team));
+    if (type === "spread") { actTT = null; openAct(g, team); } else Saved.togglePick(pickObj(g, type, team));
   });
   // tap a spread: save the pick, add it to the teaser, or look at the team
-  let act = null;
+  let act = null, actTT = null;
   function openAct(g, team) {
-    act = { g, team };
+    if (!act || act.team !== team || act.g !== g) actTT = null;
+    act = { g, team, tt: team + g[1] };
     const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1]), on = picked(g, "spread", team);
-    const n = S.legs.length;
+    const n = S.legs.length, imp = impOf(g, team), ttv = actTT !== null && act.tt === team + g[1] ? actTT : imp === null ? 0 : Math.round(imp * 2) / 2;
     $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>` +
       `<div style="display:grid;gap:8px;margin-top:10px">` +
       `<button type="button" class="chip ${on ? "" : "primary"}" data-ac="save">${on ? "★ Saved. Tap to remove" : "☆ Save this pick"}</button>` +
       `<button type="button" class="chip ${inSlip ? "" : "primary"}" data-ac="tease">${inSlip ? "Remove from teaser" : `+ Add to teaser (${S.pts} pts → ${spr(Math.round((line + S.pts) * 10) / 10)})`}</button>` +
       `<button type="button" class="chip" data-ac="team">${esc(team)} trends and stats</button></div>` +
+      (imp === null ? "" : `<div class="setrow" style="margin:14px 0 4px"><span class="lbl">${esc(team)} team total (type your book's number)</span><div class="chips"><input class="proj-in" id="ac-tt" type="number" step="0.5" inputmode="decimal" value="${ttv}" aria-label="Team total line" style="width:90px">` +
+        `<button type="button" class="chip" data-ac="tover" aria-pressed="${picked(g, "tover", team, ttv)}">${picked(g, "tover", team, ttv) ? "★ " : ""}Over</button><button type="button" class="chip" data-ac="tunder" aria-pressed="${picked(g, "tunder", team, ttv)}">${picked(g, "tunder", team, ttv) ? "★ " : ""}Under</button></div><p class="notes" style="margin:4px 0 0">Starts at the expected score (${imp}). Change it to your book's line.</p></div>`) +
       `<p class="notes" id="ac-msg" style="margin-top:10px">${n ? `Your teaser has ${n} leg${n > 1 ? "s" : ""}.` : "Your teaser is empty."}${S.msg ? " " + esc(S.msg) : ""} <button type="button" class="linkbtn" data-ac="view">View teaser</button></p>`;
     $("ac-modal").hidden = false;
     $("ac-modal").querySelector(".modal-card").focus();
@@ -1633,6 +1722,7 @@ const Saved = (() => {
       if (i >= 0) { S.legs.splice(i, 1); S.msg = ""; } else { S.msg = ""; addLeg(team, g[1], sideLine(g, team)); }
       openAct(g, team);
     }
+    else if (k === "tover" || k === "tunder") { const v = parseFloat($("ac-tt").value); if (Number.isFinite(v)) { actTT = v; Saved.togglePick(pickObj(g, k, team, v)); } openAct(g, team); }
     else if (k === "team") { $("ac-modal").hidden = true; openTeam(team); }
     else if (k === "view") { $("ac-modal").hidden = true; S.mode = "tease"; S.week = g[1]; render(); }
   });
@@ -1693,6 +1783,7 @@ const Saved = (() => {
         return `<tr><td>${x.season} W${x.week} ${x.home ? "vs" : "@"} ${esc(x.opp)}</td><td class="num">${spr(x.line)}</td><td class="num">${x.pf}-${x.pa}</td><td>${a > 0 ? '<span class="res ok">Covered</span>' : a < 0 ? '<span class="res no">Missed</span>' : '<span class="res">Push</span>'}</td><td class="num">${x.total}</td><td>${t > 0 ? '<span class="res">Over</span>' : t < 0 ? '<span class="res">Under</span>' : '<span class="res">Push</span>'}</td></tr>`;
       }).join("") + `</tbody></table></div><p class="notes" style="margin-top:8px">Lines are the single spread and total in the data file for each game, so results can differ slightly from your book's closing numbers. Past results describe what happened and do not predict the next game.</p>`;
     $("tm-modal").hidden = false;
+    $("tm-modal").querySelector(".modal-card").style.setProperty("--tc", tcol(team));
     $("tm-modal").querySelector(".modal-card").focus();
   }
   // head to head: every regular-season meeting since 2015
@@ -1720,6 +1811,7 @@ const Saved = (() => {
         }).join("") + `</tbody></table></div>` : `<p class="notes">These teams haven't met in the regular season since 2015.</p>`) +
       `<p class="notes" style="margin-top:8px">Rosters and coaches change, so older meetings count for less. The spread covered column uses the line from the data file for that game.</p>`;
     $("tm-modal").hidden = false;
+    $("tm-modal").querySelector(".modal-card").style.setProperty("--tc", tcol(a));
     $("tm-modal").querySelector(".modal-card").focus();
   }
   $("tm-body").addEventListener("click", (e) => { const w = e.target.closest("[data-tmw]"); if (w) { tmWin = +w.dataset.tmw; openTeam(tmTeam); return; } const h = e.target.closest("[data-h2h]"); if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); } });
@@ -1771,7 +1863,7 @@ const Saved = (() => {
       `<div class="stat"><span class="k">Needs</span><span class="v">${beAll === null ? "–" : pct(beAll)}</span><span class="n">${beAll === null ? "type your odds below" : "to break even"}</span></div>` +
       `<div class="stat ${ev === null ? "" : ev >= 0 ? "ok" : "neg"}"><span class="k">Expected</span><span class="v">${ev === null ? "–" : money(ev)}</span><span class="n">average result on $${S.stake}</span></div>`;
     $("z-legs").innerHTML = n ? `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Leg</th><th class="num">Line</th><th class="num">Teased</th><th class="gm">Crosses</th><th class="num"><span class="hl"><span class="long">Similar games covered</span><span class="short">History</span></span></th><th class="num fl">Team last 10</th><th></th></tr></thead><tbody>` + legs.map((l, i) =>
-      `<tr><td><strong>${teamPill(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${teamPill(l.opp)} · wk ${l.week}</span>${resultCell(l.res, l.line, S.pts) ? `<span class="sub">${resultCell(l.res, l.line, S.pts)}</span>` : ""}</td><td class="num">${lineIn("leg" + i, l.line, "Line for " + l.team)}</td><td class="num"><strong>${sl(l.line + S.pts)}</strong></td><td class="gm">${crosses(l.line, S.pts)}</td>` +
+      `<tr><td><strong>${teamPill(l.team)}</strong><span class="sub">${l.home ? "vs" : "at"} ${teamPill(l.opp)} · wk ${l.week}</span>${resultCell(l.res, l.line, S.pts) ? `<span class="sub">${resultCell(l.res, l.line, S.pts)}</span>` : ""}</td><td class="num">${lineIn("leg" + i, l.line, "Line for " + l.team)}</td><td class="num"><strong class="${l.line + S.pts > 0 ? "pos" : l.line + S.pts < 0 ? "neg" : ""}">${sl(l.line + S.pts)}</strong></td><td class="gm">${crosses(l.line, S.pts)}</td>` +
       `<td class="num"${covTint(l.st.cover, needFor(n, S.pts))}><strong>${pct(l.st.cover)}</strong><span class="sub">${l.st.n} games</span></td><td class="num fl">${recent(l.team, S.pts)}</td><td><button type="button" class="mini" data-rmleg="${i}" aria-label="Remove ${esc(l.team)}"><span class="long">Remove</span><span class="short">✕</span></button></td></tr>`).join("") + `</tbody></table></div>` +
       (playedAll ? `<p class="${miss ? "warn" : "notes"}" style="margin-top:8px">${miss ? `This slip lost: ${miss} leg${miss > 1 ? "s" : ""} missed.` : pushed ? `No leg missed, but ${pushed} pushed (the book would shrink the teaser).` : "Every leg covered: this slip won."}</p>` : "")
       : `<p class="notes">No legs yet. Press + Add on a team below.</p>`;
@@ -2157,18 +2249,40 @@ const Saved = (() => {
 })();
 
 (function () {
-  const root = document.documentElement, btn = document.getElementById("theme-btn");
-  let mode = "dark";
-  try { if (localStorage.getItem("re-theme") === "light") mode = "light"; } catch (e) { /* storage not available */ }
-  function apply() {
-    root.setAttribute("data-theme", mode);
-    btn.textContent = mode === "dark" ? "☀ Light mode" : "☾ Dark mode";
+  const root = document.documentElement, $ = (id) => document.getElementById(id);
+  const st = { mode: "dark", look: "classic", hand: "caveat" };
+  const LOOKS = [["classic", "Classic", "The original: clean, in dark or light."], ["card", "Sports card", "Chunky bordered cards, gold trim, team-color stripes, big bold numbers."], ["paper", "Paper", "A cream notepad with typewriter headings and ink."]];
+  const HANDS = [["caveat", "Caveat"], ["reenie", "Reenie Beanie"], ["nanum", "Nanum Pen"], ["kalam", "Kalam"]];
+  try {
+    if (localStorage.getItem("re-theme") === "light") st.mode = "light";
+    const l = localStorage.getItem("re-look"); if (LOOKS.some((x) => x[0] === l)) st.look = l;
+    const h = localStorage.getItem("re-hand"); if (HANDS.some((x) => x[0] === h)) st.hand = h;
+  } catch (e) { /* storage not available */ }
+  function apply() { root.setAttribute("data-theme", st.mode); root.setAttribute("data-look", st.look); root.setAttribute("data-hand", st.hand); }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage not available */ } }
+  function render() {
+    const lockMode = st.look === "paper";
+    $("st-body").innerHTML = `<h2 id="st-title">Settings</h2>` +
+      `<div class="setrow"><span class="lbl">Look</span><div class="looks" role="group" aria-label="Look">` + LOOKS.map(([k, l, d]) => `<button type="button" class="chip" data-look="${k}" aria-pressed="${st.look === k}">${l}<span class="d">${d}</span></button>`).join("") + `</div></div>` +
+      `<div class="setrow"><span class="lbl">Dark or light</span><div class="chips" role="group" aria-label="Dark or light">` + [["dark", "☾ Dark"], ["light", "☀ Light"]].map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${st.mode === k}" ${lockMode ? "disabled" : ""}>${l}</button>`).join("") + `</div>${lockMode ? '<p class="notes" style="margin:6px 0 0">Paper is always light.</p>' : ""}</div>` +
+      `<div class="setrow"><span class="lbl">Handwriting on your slip</span><div class="chips" role="group" aria-label="Handwriting font">` + HANDS.map(([k, l]) => `<button type="button" class="chip" data-hand="${k}" aria-pressed="${st.hand === k}">${l}</button>`).join("") + `</div>` +
+      `<div class="slip handprev" style="padding:8px 12px;border-radius:6px;border:1px solid var(--axis)">PHI <span class="pos">+7</span> → <span class="pos">+13</span> · LV <span class="neg">−3</span> · Over 45.5</div>` +
+      `<p class="notes" style="margin:6px 0 0">Used on the teaser slip and in the Saved panel. Pencil fonts load from the web, so they need a connection.</p></div>`;
   }
-  btn.addEventListener("click", () => {
-    mode = mode === "dark" ? "light" : "dark";
-    try { localStorage.setItem("re-theme", mode); } catch (e) { /* storage not available */ }
-    apply();
+  $("st-btn").addEventListener("click", () => { render(); $("st-modal").hidden = false; $("st-modal").querySelector(".modal-card").focus(); });
+  const close = () => { $("st-modal").hidden = true; };
+  $("st-close").addEventListener("click", close);
+  $("st-modal").addEventListener("click", (e) => {
+    if (e.target === $("st-modal")) return close();
+    const b = e.target.closest("button");
+    if (!b || b.disabled) return;
+    if (b.dataset.look) { st.look = b.dataset.look; save("re-look", st.look); }
+    else if (b.dataset.mode) { st.mode = b.dataset.mode; save("re-theme", st.mode); }
+    else if (b.dataset.hand) { st.hand = b.dataset.hand; save("re-hand", st.hand); }
+    else return;
+    apply(); render();
   });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("st-modal").hidden) close(); });
   apply();
 })();
 
@@ -2188,7 +2302,7 @@ const Saved = (() => {
     const unit = (k) => (k === "pts" ? "pts/game" : "yds/game");
     $("ts-head").textContent = `${T.side === "def" ? "Defenses: yards and points allowed" : "Offenses: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : DATA.season + " season"} · ${rows.length} teams`;
     $("ts-table").innerHTML = `<thead><tr><th class="num">#</th><th>Team</th>` + COLS.map(([k, l]) => `<th class="num"><button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${T.sort === k}">${l}</button></th>`).join("") + `<th class="num fl">Games</th></tr></thead><tbody>` +
-      rows.map((r, i) => `<tr><td class="num">${i + 1}</td><td><button type="button" class="tmpill" data-team="${r.team}" aria-label="Open ${esc(nm(r.team))} stats">${teamPill(r.team)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
+      rows.map((r, i) => `<tr style="--tc:${tcol(r.team)}"><td class="num">${i + 1}</td><td><button type="button" class="tmpill" data-team="${r.team}" aria-label="Open ${esc(nm(r.team))} stats">${teamPill(r.team)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
         COLS.map(([k]) => `<td class="num"${rkBg(r[rk][k], rows.length)} title="${unit(k)}"><strong>${r[val][k].toFixed(1)}</strong><span class="sub">${ordn(r[rk][k])}</span></td>`).join("") + `<td class="num fl">${r.n}</td></tr>`).join("") + "</tbody>";
   }
   $("ts-side").addEventListener("click", (e) => { const b = e.target.closest("button[data-side]"); if (b) { T.side = b.dataset.side; render(); } });
@@ -2224,13 +2338,15 @@ const Saved = (() => {
     return { n10: a.n, h10: a[k], nAll: b.n, hAll: b[k], p: a.n ? a[k] / a.n : null, since: smp[0][0] };
   }
 
-  const pickText = (x) => (x.type === "spread" ? `${x.team} ${x.line === 0 ? "PK" : (x.line > 0 ? "+" : "−") + Math.abs(x.line)}` : `${x.type === "over" ? "Over" : "Under"} ${x.line} (${x.away} at ${x.home})`);
+  const sgnHTML = (v) => (v === 0 ? "PK" : `<span class="${v > 0 ? "pos" : "neg"}">${v > 0 ? "+" : "−"}${Math.abs(v)}</span>`);
+  const pickText = (x) => (x.type === "spread" ? `${esc(x.team)} ${sgnHTML(x.line)}` : x.type === "tover" || x.type === "tunder" ? `${esc(x.team)} team total ${x.type === "tover" ? "over" : "under"} ${x.line}` : `${x.type === "over" ? "Over" : "Under"} ${x.line} (${esc(x.away)} at ${esc(x.home)})`);
   function pickStatus(x) {
     const g = D.sched.find((r) => r[0] === x.season && r[1] === x.week && r[3] === x.away && r[4] === x.home);
     if (!g || g[5] === null) return { cls: "", text: "Not played yet." };
-    const v = x.type === "spread" ? (x.team === x.home ? g[5] : -g[5]) + x.line : (g[8] + g[9]) - x.line, w = x.type === "under" ? -v : v;
+    const tt = x.type === "tover" || x.type === "tunder", pts = tt ? (x.team === x.home ? g[9] : g[8]) : g[8] + g[9];
+    const v = x.type === "spread" ? (x.team === x.home ? g[5] : -g[5]) + x.line : pts - x.line, w = x.type === "under" || x.type === "tunder" ? -v : v;
     const r = (n) => Math.round(n * 10) / 10;
-    return w > 0 ? { cls: "ok", text: x.type === "spread" ? `Covered by ${r(w)}` : `Hit. Final total ${g[8] + g[9]}` } : w === 0 ? { cls: "", text: "Push" } : { cls: "no", text: x.type === "spread" ? `Missed by ${r(-w)}` : `Missed. Final total ${g[8] + g[9]}` };
+    return w > 0 ? { cls: "ok", text: x.type === "spread" ? `Covered by ${r(w)}` : `Hit. Final ${pts}` } : w === 0 ? { cls: "", text: "Push" } : { cls: "no", text: x.type === "spread" ? `Missed by ${r(-w)}` : `Missed. Final ${pts}` };
   }
   function propsHTML() {
     const all = Saved.data.props.concat(Saved.data.picks), shownP = (x) => V.allWeeks || x.wk === UP || x.wk === undefined;
@@ -2254,7 +2370,7 @@ const Saved = (() => {
     if (pl.length) h += `<h3 style="margin:6px 0 8px;font-size:14px">Sides and totals</h3>` + pl.map((x) => {
       const sel = V.sel.has(x.id), st = pickStatus(x);
       return `<div class="svc ${sel ? "sel" : ""}"><div class="svrow"><input type="checkbox" data-sel="${x.id}" ${sel ? "checked" : ""} aria-label="Add this pick to the parlay">` +
-        `<div class="svmain"><button type="button" class="linkbtn" data-openl="${x.id}"><strong>${esc(pickText(x))}</strong></button>${x.odds ? ` <strong>${odds(x.odds)}</strong>` : ""}` +
+        `<div class="svmain"><button type="button" class="linkbtn" data-openl="${x.id}"><strong>${pickText(x)}</strong></button>${x.odds ? ` <strong>${odds(x.odds)}</strong>` : ""}` +
         `<div class="sub" style="margin:2px 0 0">${esc(x.away)} at ${esc(x.home)} · week ${x.week}${x.date ? " · " + when(new Date(x.date + "T12:00:00").getTime()) : ""}</div>` +
         `<div style="margin-top:4px"><span class="res ${st.cls}">${esc(st.text)}</span></div></div></div>` +
         `<div class="svedit"><input class="proj-in" type="text" inputmode="numeric" data-kodds="${x.id}" value="${x.odds ? odds(x.odds) : ""}" placeholder="Odds" aria-label="Odds, optional">` +
@@ -2322,7 +2438,7 @@ const Saved = (() => {
         `<p style="margin:6px 0 0"><span class="res ${st.cls}">${esc(st.text)}</span></p>` +
         `<ul class="svlegs">` + t.legs.map((l, i) => {
           const x = st.rs[i];
-          return `<li>${teamPill(l.team)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · wk ${l.week}</span> <span>${l.line > 0 ? "+" : ""}${l.line} → <strong>${l.line + t.pts > 0 ? "+" : ""}${Math.round((l.line + t.pts) * 10) / 10}</strong></span>` +
+          return `<li>${teamPill(l.team)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · wk ${l.week}</span> <span><span class="${l.line > 0 ? "pos" : l.line < 0 ? "neg" : ""}">${l.line > 0 ? "+" : l.line < 0 ? "−" : ""}${Math.abs(l.line)}</span> → <strong class="${l.line + t.pts > 0 ? "pos" : l.line + t.pts < 0 ? "neg" : ""}">${l.line + t.pts > 0 ? "+" : l.line + t.pts < 0 ? "−" : ""}${Math.abs(Math.round((l.line + t.pts) * 10) / 10)}</strong></span>` +
             (x === null ? ` <span class="sub" style="margin:0">pending</span>` : x > 0 ? ` <span class="res ok">Covered by ${Math.round(x * 10) / 10}</span>` : x === 0 ? ` <span class="res">Push</span>` : ` <span class="res no">Missed by ${Math.round(-x * 10) / 10}</span>`) + `</li>`;
         }).join("") + `</ul>` +
         `<div class="svedit"><button type="button" class="chip primary" data-loadt="${t.id}" ${RE.loadTeaser && (t.season || D.season) === D.season ? "" : "disabled"}>Load into Teasers</button><button type="button" class="mini" data-del="teasers|${t.id}">Delete</button></div></div>`;
