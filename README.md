@@ -3,6 +3,8 @@
 Personal NFL and college football research tool. It is one web page that rebuilds itself and publishes to GitHub Pages.
 
 **What it does**
+- **Home** (opens first): buttons to every section plus cards for upcoming games, line moves, open bets, teaser candidates (dogs +1.5 to +2.5, favorites −7.5 to −8.5) and your top 10 draft prospects. Press Edit layout to reorder, hide or bring back any button or card.
+- **Draft**: build your own big board (search a prospect pool, paste a list from anywhere, or add by hand), set ranks, tiers and notes, then run a round-1 mock draft in current worst-to-best record order.
 - **Lines & teasers** (opens first): every game's spread and total, with how often similar lines covered, team records (and conference records in college), AP ranks, last-10 trends, head-to-head history, and filters and sorts for side (home/road dogs), spread size, kickoff window (early, late, prime time), overs/unders hitting, and line moved. The Teasers page lets you build a slip, compare 6, 6.5 and 7 points, type your book's odds and see the payout, break-even and expected result.
 - **Teams** (NFL): best and worst offenses and defenses, sortable both ways.
 - **Players, Defenses, Top hit rates** (NFL): prop-bet hit rates by player and by defense, with opponent rank.
@@ -15,6 +17,7 @@ Personal NFL and college football research tool. It is one web page that rebuild
 |---|---|---|
 | NFL stats, schedule, scores | nflverse / nfldata (free, public) | none |
 | College schedule, scores, ranks | CollegeFootballData.com | `CFBD_API_KEY` (free) |
+| Draft prospect pool (juniors and seniors with the most production) | CollegeFootballData.com | `CFBD_API_KEY` (same key) |
 | Current spreads and totals, plus line history | The Odds API (Bovada first, then DraftKings, FanDuel, BetMGM) | `ODDS_API_KEY` (free plan, 500 credits a month) |
 
 Keys are stored as repository secrets (GitHub: Settings, Secrets and variables, Actions) and read during the build. They are never written into the page. Without a key that part simply stays off and the page keeps working with the free schedule lines.
@@ -37,9 +40,10 @@ You can also just load a CSV on the page itself. That works instantly but only i
 - `pipeline/` the data scripts. `python pipeline/run_all.py` runs everything and writes `site/index.html`.
   - `fetch.py` / `prep_data.py` NFL data and projections
   - `college.py` college data (CollegeFootballData)
+  - `draft.py` prospect search pool for the Draft board (CollegeFootballData, reused for about a day)
   - `odds.py` current lines and line history (The Odds API)
 - `app/` the page (`template.html`), its logic (`core.js`) and the built-in salary file.
-- `tests/` `smoke_test.js` runs before every publish (if it fails, the old site stays up); `test_college.py` and `test_odds.py` check the college and odds code with made-up data.
+- `tests/` `smoke_test.js` runs before every publish (if it fails, the old site stays up); `test_college.py`, `test_odds.py` and `test_draft.py` check the college, odds and draft code with made-up data.
 - `.github/workflows/refresh.yml` the schedule and the publish steps.
 
 ## Run it yourself

@@ -412,6 +412,29 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .hm-teams { display: inline-flex; align-items: center; gap: 6px; }
 .hm-line { margin-left: auto; font-size: 14px; }
 .hm-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+
+/* Draft */
+.dr-add { position: relative; }
+.dr-add input[type="text"] { width: 100%; box-sizing: border-box; }
+.dr-res { display: flex; flex-direction: column; }
+.dr-hit { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; text-align: left; padding: 9px 6px; background: var(--surface); color: var(--ink); border: 0; border-bottom: 1px solid var(--border); cursor: pointer; font: inherit; }
+.dr-hit:hover { background: var(--hover); }
+.dr-det { margin: 8px 0; }
+.dr-det textarea { width: 100%; box-sizing: border-box; margin-top: 6px; }
+.dr-tier { margin: 14px 0 4px; font-weight: 700; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
+.dr-row { padding: 9px 0; border-top: 1px solid var(--border); }
+.dr-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dr-rank { width: 58px; text-align: center; font-weight: 700; }
+.dr-name { font-size: 16px; }
+.dr-sub { margin: 3px 0 6px 66px; }
+.dr-ctl { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-left: 0; }
+.dr-ctl select { width: 104px; flex: 0 0 auto; }
+.dr-det summary { font-size: 15px; letter-spacing: 0; text-transform: none; border-left: 0; padding-left: 0; cursor: pointer; font-weight: 600; }
+.dr-det > * { margin-top: 6px; }
+.dr-note { flex: 1 1 90px; min-width: 0; width: 90px; }
+.dr-pick { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
+.dr-pick select { flex: 1; min-width: 0; }
+.dr-pn { width: 26px; text-align: right; font-weight: 700; }
 /* Paper look */
 html[data-look="paper"][data-theme] { color-scheme: light; --page: #ece3cb; --surface: #fbf6e6; --ink: #25231e; --ink2: #5b564a; --muted: #8b8572; --grid: #ddd2b4; --axis: #bfb393; --border: rgba(70,55,25,.24); --hover: rgba(70,55,25,.08); --shadow: 0 2px 0 rgba(70,55,25,.2);
   --over: #2f62a3; --under: #c0592b; --push: #8b8572; --accent: #2f6b3d; --accent-ink: #fbf6e6; --accent-soft: rgba(47,107,61,.13); --star: #a87a00; --warn: #a15c00; --bad: #b3261e;
@@ -489,6 +512,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <button type="button" role="tab" id="tab-top" class="chip" aria-selected="false" aria-controls="view-top">Top hit rates</button>
     <button type="button" role="tab" id="tab-proj" class="chip" aria-selected="false" aria-controls="view-proj">DFS</button>
     <button type="button" role="tab" id="tab-bets" class="chip" aria-selected="false" aria-controls="view-bets">Bets</button>
+    <button type="button" role="tab" id="tab-draft" class="chip" aria-selected="false" aria-controls="view-draft">Draft</button>
   </nav>
 
   <div class="view" id="view-home" role="tabpanel" aria-labelledby="tab-home">
@@ -498,6 +522,8 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     </div>
     <div id="hm-root"></div>
   </div>
+
+  <div class="view" id="view-draft" role="tabpanel" aria-labelledby="tab-draft" hidden><div id="dr-root"></div></div>
 
   <div class="view" id="view-players" hidden>
   <section class="controls" aria-label="Choose a player, a stat and a line">
@@ -931,6 +957,23 @@ const Saved = (() => {
       return { added };
     },
   };
+})();
+
+// ---------- Your draft big board and mock draft picks: kept in this browser, and included in the Saved backup ----------
+const Board = (() => {
+  const KEY = "re-board-v1", b = { items: [], mock: {} };
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; } } catch (e) { /* storage not available */ }
+  const subs = [];
+  b.on = (f) => subs.push(f);
+  b.save = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock })); } catch (e) { /* storage not available */ } subs.forEach((f) => f()); };
+  const ex = Saved.exportJSON, im = Saved.importJSON;
+  Saved.exportJSON = () => { const o = JSON.parse(ex()); o.board = b.items; o.mock = b.mock; return JSON.stringify(o, null, 1); };
+  Saved.importJSON = (text) => {
+    const res = im(text); if (res.error) return res;
+    try { const r = JSON.parse(text); let n = 0; for (const x of Array.isArray(r.board) ? r.board : []) if (x && x.id && !b.items.some((y) => y.id === x.id)) { b.items.push(x); n++; } if (n) { if (r.mock && !Object.keys(b.mock).length) b.mock = r.mock; b.save(); res.added += n; } } catch (e) { /* ignore */ }
+    return res;
+  };
+  return b;
 })();
 
 (function () {
@@ -1539,7 +1582,7 @@ const Saved = (() => {
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   // tabs
-  const tabs = { home: [$("tab-home"), $("view-home")], players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")], bets: [$("tab-bets"), $("view-bets")] };
+  const tabs = { home: [$("tab-home"), $("view-home")], players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")], bets: [$("tab-bets"), $("view-bets")], draft: [$("tab-draft"), $("view-draft")] };
   function show(k) {
     for (const [key, [t, v]] of Object.entries(tabs)) {
       t.setAttribute("aria-selected", String(key === k));
@@ -2996,13 +3039,127 @@ const Saved = (() => {
   render();
 })();
 
+// ---------- Draft: your own big board, plus a mock draft in current worst-to-best order ----------
+(function () {
+  const $ = (id) => document.getElementById(id), root = $("dr-root");
+  const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/\s+/g, " ").trim();
+  const DR = DATA.draft && DATA.draft.ok ? DATA.draft : null;
+  const POOL = DR ? DR.pool.map((r) => ({ id: "p" + r[0], name: r[1], pos: r[2], team: r[3], conf: r[4], cls: r[5], ht: r[6], wt: r[7], stat: r[8], k: norm(r[1] + " " + r[3] + " " + r[2]) })) : [];
+  const BYNAME = new Map(); for (const p of POOL) { const k = norm(p.name); (BYNAME.get(k) || BYNAME.set(k, []).get(k)).push(p); }
+  const GROUPS = [["all", "All positions", null], ["QB", "QB", ["QB"]], ["RB", "RB", ["RB", "FB", "APB"]], ["WR", "WR", ["WR"]], ["TE", "TE", ["TE"]], ["OL", "OL", ["OL", "OT", "OG", "C", "IOL"]], ["DL", "DL", ["DL", "DT", "NT"]], ["EDGE", "EDGE", ["DE", "EDGE"]], ["LB", "LB", ["LB", "ILB", "OLB"]], ["DB", "DB", ["DB", "CB", "S", "FS", "SS"]]];
+  const V = { mode: "board", grp: "all", q: "", note: "" };
+  const CLS = { 3: "Jr", 4: "Sr", 5: "5th" };
+  const uid = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const item = (p) => ({ id: p.id || uid(), name: p.name, pos: p.pos || "", team: p.team || "", cls: p.cls || null, stat: p.stat || "", tier: "", note: "", custom: !p.id });
+  const onBoard = (id) => Board.items.some((x) => x.id === id);
+  const posIn = (it, g) => { const G = GROUPS.find((x) => x[0] === g); return !G || !G[2] || G[2].includes(String(it.pos).toUpperCase()); };
+  const tag = (t) => (COL && COL.teams[t] ? tp(t, "cfb") : "");
+  const sub = (it) => [it.team, it.cls ? CLS[it.cls] : "", it.stat].filter(Boolean).map(esc).join(" · ");
+
+  function moveTo(id, n) { const i = Board.items.findIndex((x) => x.id === id); if (i < 0) return; const [x] = Board.items.splice(i, 1); Board.items.splice(Math.max(0, Math.min(Board.items.length, n - 1)), 0, x); Board.save(); }
+  function addPlayers(list) { let n = 0; for (const p of list) if (!Board.items.some((x) => x.id === p.id || (norm(x.name) === norm(p.name) && x.team === p.team))) { Board.items.push(item(p)); n++; } if (n) Board.save(); return n; }
+  function parseList(text) {
+    let hit = 0, hand = 0; const out = [];
+    for (let line of text.split(/\n+/)) {
+      line = line.replace(/^\s*(#?\d+[.)\-:]?\s+)/, "").trim(); if (!line) continue;
+      const parts = line.split(/\t|,| - | – /).map((x) => x.trim()).filter(Boolean), name = parts[0];
+      const rest = parts.slice(1), pos = rest.find((x) => /^[A-Za-z]{1,4}$/.test(x) && GROUPS.some((g) => g[2] && g[2].includes(x.toUpperCase()))) || "", team = rest.find((x) => x !== pos) || "";
+      const m = BYNAME.get(norm(name));
+      if (m) { const best = (pos && m.find((x) => String(x.pos).toUpperCase() === pos.toUpperCase())) || (team && m.find((x) => norm(x.team) === norm(team))) || m[0]; out.push(best); hit++; }
+      else { out.push({ name, pos: pos.toUpperCase(), team }); hand++; }
+    }
+    return { out, hit, hand };
+  }
+  // ---- mock draft order: worst record picks first (playoffs, tiebreakers and trades are not included) ----
+  function order() {
+    const rec = {};
+    for (const r of DATA.sched) if (r[0] === DATA.season && r[5] !== null) {
+      for (const [t, f, a] of [[r[3], r[8], r[9]], [r[4], r[9], r[8]]]) { const x = rec[t] || (rec[t] = { t, w: 0, l: 0, tie: 0, pd: 0 }); x.pd += f - a; if (f > a) x.w++; else if (f < a) x.l++; else x.tie++; }
+    }
+    for (const r of DATA.sched) if (r[0] === DATA.season) for (const t of [r[3], r[4]]) if (!rec[t]) rec[t] = { t, w: 0, l: 0, tie: 0, pd: 0 };
+    const pct = (x) => (x.w + x.tie / 2) / Math.max(1, x.w + x.l + x.tie);
+    return Object.values(rec).sort((a, b) => pct(a) - pct(b) || a.pd - b.pd || (a.t < b.t ? -1 : 1));
+  }
+  function renderBoard() {
+    const sel = (cur, id, opts) => `<select id="${id}" aria-label="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+    let h = `<div class="dr-add"><input id="dr-q" type="text" placeholder="${POOL.length ? "Search a player or school to add" : "Prospect search is off (needs CFBD_API_KEY). Use paste or add by hand."}" autocomplete="off" ${POOL.length ? "" : "disabled"} value="${esc(V.q)}" aria-label="Search prospects"><div id="dr-res" class="dr-res"></div></div>` +
+      `<details class="dr-det"><summary>Paste a list (from ESPN, a site, or notes)</summary><textarea id="dr-paste" rows="5" placeholder="One player per line. Numbers in front are fine.&#10;1. Arch Manning, QB, Texas&#10;2. Jeremiah Smith"></textarea><div class="chips" style="margin-top:6px"><button type="button" class="chip primary" data-dr="paste">Add these to my board</button></div></details>` +
+      `<details class="dr-det"><summary>Add by hand</summary><div class="svedit"><input class="proj-in" id="dr-hn" type="text" placeholder="Name" style="width:150px"><input class="proj-in" id="dr-hp" type="text" placeholder="Pos" style="width:60px"><input class="proj-in" id="dr-ht" type="text" placeholder="School" style="width:130px"><button type="button" class="chip primary" data-dr="hand">Add</button></div></details>` +
+      (V.note ? `<p class="notes">${esc(V.note)}</p>` : "");
+    h += `<div class="chips" style="margin:10px 0">${sel(V.grp, "dr-grp", GROUPS.map((g) => [g[0], g[1]]))}<span class="sub" style="margin:0 0 0 auto">${Board.items.length} on your board</span></div>`;
+    const rows = Board.items.map((it, i) => ({ it, n: i + 1 })).filter((x) => posIn(x.it, V.grp));
+    if (!Board.items.length) h += `<p class="notes">Your board is empty. Search for a player above, or paste a list. Then set each player's number to put him where you want, or use the arrows. Tiers and notes are yours too.</p>`;
+    let lastTier = null;
+    for (const { it, n } of rows) {
+      if (it.tier && it.tier !== lastTier) h += `<div class="dr-tier">Tier ${esc(it.tier)}</div>`;
+      lastTier = it.tier || lastTier;
+      h += `<div class="dr-row"><div class="dr-top"><input class="proj-in dr-rank" type="number" min="1" max="${Board.items.length}" inputmode="numeric" value="${n}" data-dr-rank="${esc(it.id)}" aria-label="Rank of ${esc(it.name)}"><strong class="dr-name">${esc(it.name)}</strong><span class="flag">${esc(it.pos || "?")}</span>${tag(it.team)}</div>` +
+        `<div class="sub dr-sub">${sub(it) || "added by hand"}</div>` +
+        `<div class="dr-ctl"><select data-dr-tier="${esc(it.id)}" aria-label="Tier"><option value="">No tier</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}" ${String(it.tier) === String(t) ? "selected" : ""}>Tier ${t}</option>`).join("")}</select>` +
+        `<input class="proj-in dr-note" type="text" data-dr-note="${esc(it.id)}" value="${esc(it.note)}" placeholder="Note" maxlength="140" aria-label="Note for ${esc(it.name)}">` +
+        `<button type="button" class="mini" data-dr-mv="${esc(it.id)}|-1" ${n === 1 ? "disabled" : ""} aria-label="Move up">▲</button><button type="button" class="mini" data-dr-mv="${esc(it.id)}|1" ${n === Board.items.length ? "disabled" : ""} aria-label="Move down">▼</button><button type="button" class="mini" data-dr-del="${esc(it.id)}" aria-label="Remove">✕</button></div></div>`;
+    }
+    h += `<p class="notes">This board is yours: nothing here is a ranking from anyone else. It's saved in this browser and included in the Saved backup. Search covers juniors and seniors with the most production this season${DR ? " (" + POOL.length + " players, refreshed daily)" : ""}; anyone missing can be pasted or added by hand.</p>`;
+    return h;
+  }
+  function renderMock() {
+    const ord = order(), by = new Map(Board.items.map((x, i) => [x.id, { x, n: i + 1 }]));
+    const picks = Board.mock; for (const k of Object.keys(picks)) if (!by.has(picks[k])) delete picks[k];
+    const used = new Set(Object.values(picks));
+    let h = `<div class="chips" style="margin:0 0 10px"><button type="button" class="chip primary" data-dr="auto">Fill the rest from my board</button><button type="button" class="chip" data-dr="clear">Clear picks</button></div>`;
+    if (!Board.items.length) h += `<p class="notes">Build your big board first. The mock draft picks from it.</p>`;
+    h += ord.slice(0, 32).map((r, i) => {
+      const cur = picks[i], opts = Board.items.map((x, j) => ({ x, n: j + 1 })).filter(({ x }) => x.id === cur || !used.has(x.id)).slice(0, 60);
+      return `<div class="dr-pick"><span class="dr-pn">${i + 1}</span>${teamPill(r.t)}<span class="sub" style="margin:0">${r.w}-${r.l}${r.tie ? "-" + r.tie : ""}</span><select data-dr-slot="${i}" aria-label="Pick ${i + 1}"><option value="">Pick a player</option>${opts.map(({ x, n }) => `<option value="${esc(x.id)}" ${x.id === cur ? "selected" : ""}>${n}. ${esc(x.name)} (${esc(x.pos || "?")}${x.team ? ", " + esc(x.team) : ""})</option>`).join("")}</select></div>`;
+    }).join("");
+    h += `<p class="notes">Round 1 only. The order is each team's record this season, worst first. Playoff results, tiebreakers and trades aren't included, so treat it as a starting point.</p>`;
+    return h;
+  }
+  function render() {
+    const seg = (k, l) => `<button type="button" class="chip" data-dr-mode="${k}" aria-pressed="${V.mode === k}">${l}</button>`;
+    root.innerHTML = `<div class="chips" style="margin:0 0 12px">${seg("board", "Big board")}${seg("mock", "Mock draft")}</div>` + (V.mode === "board" ? renderBoard() : renderMock());
+    if (V.mode === "board") results();
+  }
+  function results() {
+    const el = $("dr-res"); if (!el) return;
+    const toks = norm(V.q).split(" ").filter(Boolean);
+    if (!toks.length) { el.innerHTML = ""; return; }
+    const hits = POOL.filter((p) => !onBoard(p.id) && toks.every((t) => p.k.includes(t))).slice(0, 10);
+    el.innerHTML = hits.length ? hits.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span><strong>${esc(p.name)}</strong> <span class="flag">${esc(p.pos || "?")}</span> ${esc(p.team)}${p.cls ? " · " + CLS[p.cls] : ""}</span><span class="sub" style="margin:0">${esc(p.stat)}</span></button>`).join("") : `<p class="notes">No match. Try fewer letters, or add by hand.</p>`;
+  }
+  root.addEventListener("input", (e) => { if (e.target.id === "dr-q") { V.q = e.target.value; results(); } });
+  root.addEventListener("change", (e) => {
+    const t = e.target, d = t.dataset;
+    if (t.id === "dr-grp") { V.grp = t.value; render(); }
+    else if (d.drRank) { const n = parseInt(t.value, 10); if (Number.isFinite(n)) moveTo(d.drRank, n); render(); }
+    else if (d.drTier !== undefined) { const x = Board.items.find((y) => y.id === d.drTier); if (x) { x.tier = t.value; Board.save(); render(); } }
+    else if (d.drNote !== undefined) { const x = Board.items.find((y) => y.id === d.drNote); if (x) { x.note = t.value.trim(); Board.save(); } }
+    else if (d.drSlot !== undefined) { if (t.value) Board.mock[d.drSlot] = t.value; else delete Board.mock[d.drSlot]; Board.save(); render(); }
+  });
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
+    if (d.drMode) { V.mode = d.drMode; V.note = ""; render(); }
+    else if (d.drAdd) { const p = POOL.find((x) => x.id === d.drAdd); if (p) { addPlayers([p]); V.q = ""; V.note = `Added ${p.name} at #${Board.items.length}.`; render(); } }
+    else if (d.drMv) { const [id, dir] = d.drMv.split("|"), i = Board.items.findIndex((x) => x.id === id); moveTo(id, i + 1 + +dir); render(); }
+    else if (d.drDel) { const i = Board.items.findIndex((x) => x.id === d.drDel); if (i >= 0) { Board.items.splice(i, 1); Board.save(); render(); } }
+    else if (d.dr === "paste") { const r = parseList($("dr-paste").value); const n = addPlayers(r.out); V.note = r.out.length ? `Added ${n} of ${r.out.length} (${r.hit} found in the prospect list, ${r.hand} added by hand${n < r.out.length ? ", " + (r.out.length - n) + " were already on your board" : ""}).` : "Nothing to add."; render(); }
+    else if (d.dr === "hand") { const nm = $("dr-hn").value.trim(); if (nm) { addPlayers([{ name: nm, pos: $("dr-hp").value.trim().toUpperCase(), team: $("dr-ht").value.trim() }]); V.note = `Added ${nm}.`; } render(); }
+    else if (d.dr === "auto") { const used = new Set(Object.values(Board.mock)); const free = Board.items.filter((x) => !used.has(x.id)); for (let i = 0; i < 32 && free.length; i++) if (!Board.mock[i]) Board.mock[i] = free.shift().id; Board.save(); render(); }
+    else if (d.dr === "clear") { Board.mock = {}; Board.save(); render(); }
+  });
+  $("tab-draft").addEventListener("click", render);
+  Board.on(() => { if (RE.homeRender && !$("view-home").hidden) RE.homeRender(); });
+  render();
+})();
+
 // ---------- Home screen: buttons and cards you can show, hide and reorder (kept in this browser) ----------
 (function () {
   const $ = (id) => document.getElementById(id), root = $("hm-root");
   const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const KEY = "re-home-v1";
-  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease"], ["teams", "Teams", "Offense and defense rankings", "tab-teams"], ["players", "Players", "Prop hit rates by player", "tab-players"], ["def", "Defenses", "Hit rates by defense", "tab-def"], ["top", "Top hit rates", "Best props right now", "tab-top"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj"], ["bets", "Bets", "Track real and practice bets", "tab-bets"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn"]];
-  const CARDS = [["up", "Upcoming games"], ["moves", "Line moves"], ["bets", "Open bets"], ["tease", "Teaser candidates"]];
+  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease"], ["teams", "Teams", "Offense and defense rankings", "tab-teams"], ["players", "Players", "Prop hit rates by player", "tab-players"], ["def", "Defenses", "Hit rates by defense", "tab-def"], ["top", "Top hit rates", "Best props right now", "tab-top"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj"], ["bets", "Bets", "Track real and practice bets", "tab-bets"], ["draft", "Draft", "Your big board and mock draft", "tab-draft"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn"]];
+  const CARDS = [["up", "Upcoming games"], ["moves", "Line moves"], ["bets", "Open bets"], ["tease", "Teaser candidates"], ["draft", "My draft board"]];
   const DEFAULT = [...TILES.map((t) => "t:" + t[0]), ...CARDS.map((c) => "c:" + c[0])];
   let L = { order: DEFAULT.slice(), hidden: [] }, editing = false;
   try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r && Array.isArray(r.order)) { L.order = r.order.filter((k) => DEFAULT.includes(k)); L.hidden = (r.hidden || []).filter((k) => DEFAULT.includes(k)); } } catch (e) { /* storage not available */ }
@@ -3049,6 +3206,10 @@ const Saved = (() => {
       const m = (v) => (v < 0 ? "−$" : "+$") + Math.abs(v).toFixed(2);
       return `<div class="stats" style="margin:0 0 8px"><div class="stat"><span class="k">Open</span><span class="v">${open.length}</span></div><div class="stat"><span class="k">Record</span><span class="v">${w}-${l}</span></div><div class="stat ${prof > 0 ? "ok" : prof < 0 ? "neg" : ""}"><span class="k">Profit</span><span class="v">${m(prof)}</span></div></div>` +
         open.slice(0, 5).map((x) => `<div class="hm-row"><strong>${esc(x.name || x.type)}</strong><span class="sub" style="margin:0">${esc(x.sport || "")} · ${x.stake != null ? "$" + x.stake + " stake" : "no stake"}${x.toWin != null ? " · to win $" + x.toWin : ""}</span></div>`).join("");
+    },
+    draft() {
+      if (!Board.items.length) return `<button type="button" class="hm-game" data-hm-go="tab-draft"><span class="hm-teams">No board yet. Tap to start yours.</span></button>`;
+      return Board.items.slice(0, 10).map((x, i) => `<button type="button" class="hm-game" data-hm-go="tab-draft"><span class="hm-teams"><b>${i + 1}.</b> ${esc(x.name)} <span class="flag">${esc(x.pos || "?")}</span></span><span class="hm-line sub" style="margin-top:0">${esc(x.team || "")}</span></button>`).join("");
     },
     tease({ lg, up }) {
       if (!up.length) return `<p class="notes">No upcoming games.</p>`;
