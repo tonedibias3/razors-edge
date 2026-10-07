@@ -266,6 +266,8 @@ input.proj-in[type="number"] { height: 30px; width: 72px; border-radius: 6px; te
 .mini { height: 28px; padding: 0 9px; border: 1px solid var(--axis); background: var(--surface); border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .mini[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 #p-table { min-width: 800px; }
+#p-table th:last-child, #p-table td:last-child { position: sticky; right: 0; z-index: 1; background: var(--surface); white-space: normal; width: 205px; min-width: 205px; padding-left: 10px; padding-right: 12px; box-shadow: -8px 0 8px -8px rgba(0,0,0,.35); }
+#p-table td:last-child .mini { margin: 2px 3px 2px 0; }
 .mini .short, .hl .short { display: none; }
 @media (max-width: 520px) {
   #p-body th.gm, #p-body td.gm, #p-body th.fl, #p-body td.fl, #z-slip .gm, #z-slip .fl, #z-table .gm, #z-table .fl, #l-table td .sub.fl, #ts-table .fl { display: none; }
