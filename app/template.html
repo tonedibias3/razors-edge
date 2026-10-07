@@ -395,6 +395,23 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .svc.sel { background: var(--accent-soft); }
 .parlay { background: rgba(255,255,255,.4); }
 
+
+/* Home screen */
+.hm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 0 0 14px; }
+.hm-tile { display: flex; flex-direction: column; gap: 6px; }
+.hm-tile.off, .hm-card.off { opacity: .55; }
+.hm-go { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 14px; min-height: 84px; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font: inherit; }
+.hm-go:hover { background: var(--hover); }
+.hm-t { font-weight: 700; font-size: 17px; }
+.hm-ctl { display: flex; gap: 6px; flex-wrap: wrap; }
+.hm-card { margin: 0 0 14px; }
+.hm-game { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; width: 100%; text-align: left; padding: 9px 4px; background: transparent; color: var(--ink); border: 0; border-top: 1px solid var(--border); cursor: pointer; font: inherit; }
+.hm-game:first-of-type { border-top: 0; }
+.hm-game:hover { background: var(--hover); }
+.hm-when { flex: 1 0 100%; font-size: 13px; color: var(--muted); }
+.hm-teams { display: inline-flex; align-items: center; gap: 6px; }
+.hm-line { margin-left: auto; font-size: 14px; }
+.hm-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 8px 0; border-top: 1px solid var(--border); }
 /* Paper look */
 html[data-look="paper"][data-theme] { color-scheme: light; --page: #ece3cb; --surface: #fbf6e6; --ink: #25231e; --ink2: #5b564a; --muted: #8b8572; --grid: #ddd2b4; --axis: #bfb393; --border: rgba(70,55,25,.24); --hover: rgba(70,55,25,.08); --shadow: 0 2px 0 rgba(70,55,25,.2);
   --over: #2f62a3; --under: #c0592b; --push: #8b8572; --accent: #2f6b3d; --accent-ink: #fbf6e6; --accent-soft: rgba(47,107,61,.13); --star: #a87a00; --warn: #a15c00; --bad: #b3261e;
@@ -464,7 +481,8 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
   <div class="lbar" id="top-bar"></div>
   <div class="chips" id="lg-sw" role="group" aria-label="League" style="margin:0 0 8px" hidden></div>
   <nav class="tabs" role="tablist" aria-label="Views">
-    <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="true" aria-controls="view-tease">Lines &amp; teasers</button>
+    <button type="button" role="tab" id="tab-home" class="chip" aria-selected="true" aria-controls="view-home">Home</button>
+    <button type="button" role="tab" id="tab-tease" class="chip" aria-selected="false" aria-controls="view-tease">Lines &amp; teasers</button>
     <button type="button" role="tab" id="tab-teams" class="chip" aria-selected="false" aria-controls="view-teams">Teams</button>
     <button type="button" role="tab" id="tab-players" class="chip" aria-selected="false" aria-controls="view-players">Players</button>
     <button type="button" role="tab" id="tab-def" class="chip" aria-selected="false" aria-controls="view-def">Defenses</button>
@@ -472,6 +490,14 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <button type="button" role="tab" id="tab-proj" class="chip" aria-selected="false" aria-controls="view-proj">DFS</button>
     <button type="button" role="tab" id="tab-bets" class="chip" aria-selected="false" aria-controls="view-bets">Bets</button>
   </nav>
+
+  <div class="view" id="view-home" role="tabpanel" aria-labelledby="tab-home">
+    <div class="chips" style="margin:0 0 10px;justify-content:space-between">
+      <h2 style="margin:0">Home</h2>
+      <button type="button" class="chip" id="hm-edit" aria-pressed="false">✎ Edit layout</button>
+    </div>
+    <div id="hm-root"></div>
+  </div>
 
   <div class="view" id="view-players" hidden>
   <section class="controls" aria-label="Choose a player, a stat and a line">
@@ -658,7 +684,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <p class="notes" id="t-notes">Estimate uses the same rule as the Matchup section: his rate in this window plus how far his next opponent sits from the league for players in his role over the last 3 seasons. Short windows can push it toward 100%, so read a high number as consistent, not certain. Only players with a game this season are listed, and a player needs at least as many games as the window. Click a name to open him on the Players tab.</p>
   </div>
 
-  <div class="view" id="view-tease" role="tabpanel" aria-labelledby="tab-tease">
+  <div class="view" id="view-tease" role="tabpanel" aria-labelledby="tab-tease" hidden>
     <div class="chips" id="z-mode" role="group" aria-label="Show"></div>
     <div id="z-lines" style="margin-top:12px">
       <div class="lbar" id="l-bar"><label class="lf"><span class="lbl">Week</span><select id="l-week"></select></label><div id="l-dyn" style="display:contents"></div></div>
@@ -1513,7 +1539,7 @@ const Saved = (() => {
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   // tabs
-  const tabs = { players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")], bets: [$("tab-bets"), $("view-bets")] };
+  const tabs = { home: [$("tab-home"), $("view-home")], players: [$("tab-players"), $("view-players")], def: [$("tab-def"), $("view-def")], top: [$("tab-top"), $("view-top")], tease: [$("tab-tease"), $("view-tease")], teams: [$("tab-teams"), $("view-teams")], proj: [$("tab-proj"), $("view-proj")], bets: [$("tab-bets"), $("view-bets")] };
   function show(k) {
     for (const [key, [t, v]] of Object.entries(tabs)) {
       t.setAttribute("aria-selected", String(key === k));
@@ -2966,6 +2992,116 @@ const Saved = (() => {
     else { const v = parseFloat(t.value); Saved.update("bets", id, { [k]: Number.isFinite(v) ? v : null }); }
   });
   Saved.on(() => { V.note = V.note === "Saved." ? "Saved." : ""; if (!$("view-bets").hidden || true) render(); });
+  RE.betOutcome = outcome; RE.betProfit = profit;
+  render();
+})();
+
+// ---------- Home screen: buttons and cards you can show, hide and reorder (kept in this browser) ----------
+(function () {
+  const $ = (id) => document.getElementById(id), root = $("hm-root");
+  const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const KEY = "re-home-v1";
+  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease"], ["teams", "Teams", "Offense and defense rankings", "tab-teams"], ["players", "Players", "Prop hit rates by player", "tab-players"], ["def", "Defenses", "Hit rates by defense", "tab-def"], ["top", "Top hit rates", "Best props right now", "tab-top"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj"], ["bets", "Bets", "Track real and practice bets", "tab-bets"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn"]];
+  const CARDS = [["up", "Upcoming games"], ["moves", "Line moves"], ["bets", "Open bets"], ["tease", "Teaser candidates"]];
+  const DEFAULT = [...TILES.map((t) => "t:" + t[0]), ...CARDS.map((c) => "c:" + c[0])];
+  let L = { order: DEFAULT.slice(), hidden: [] }, editing = false;
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r && Array.isArray(r.order)) { L.order = r.order.filter((k) => DEFAULT.includes(k)); L.hidden = (r.hidden || []).filter((k) => DEFAULT.includes(k)); } } catch (e) { /* storage not available */ }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) { /* storage not available */ } };
+  const sync = () => { for (const k of DEFAULT) if (!L.order.includes(k)) L.order.push(k); };
+  const lgNow = () => (RE.lg === "cfb" && COL ? "cfb" : "nfl");
+  const todayET = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const t12 = (t) => { if (!t) return ""; const [h, m] = t.split(":").map(Number); return ((h + 11) % 12 + 1) + ":" + String(m).padStart(2, "0") + " " + (h >= 12 ? "PM" : "AM"); };
+  const sn = (v) => (Number.isInteger(v) ? String(Math.abs(v)) : Math.abs(v).toFixed(1));
+  // schedule rows put the HOME team's edge in r[6]: positive means home is favored
+  const fav = (r, v) => (v === null || v === undefined ? "no line" : v === 0 ? "PK" : (v > 0 ? r[4] : r[3]) + " −" + sn(v));
+  const when = (r) => { const d = new Date(r[2] + "T12:00:00"), n = Math.round((d - new Date(todayET() + "T12:00:00")) / 864e5); return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) + (r[10] ? " · " + t12(r[10]) : "") + (n === 0 ? " · today" : n === 1 ? " · tomorrow" : n > 1 && n < 8 ? " · in " + n + " days" : ""); };
+  function ctx() {
+    const lg = lgNow(), sch = lg === "cfb" ? COL.sched : DATA.sched, season = lg === "cfb" ? COL.season : DATA.season, today = todayET();
+    const up = sch.filter((r) => r[0] === season && r[5] === null && r[2] >= today).sort((a, b) => (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : String(a[10] || "99").localeCompare(String(b[10] || "99"))));
+    return { lg, up, season };
+  }
+  const gameBtn = (r, lg, inner) => `<button type="button" class="hm-game" data-hm-game="${r[1]}|${lg}">${inner}</button>`;
+  const card = {
+    up({ lg, up }) {
+      if (!up.length) return `<p class="notes">No upcoming games in the schedule right now.</p>`;
+      return up.slice(0, 8).map((r) => gameBtn(r, lg, `<span class="hm-when">${esc(when(r))}</span><span class="hm-teams">${tp(r[3], lg)} <span class="sub" style="margin:0">at</span> ${tp(r[4], lg)}</span><span class="hm-line">${r[6] === null ? "no line yet" : esc(fav(r, r[6])) + (r[7] !== null ? " · O/U " + sn(r[7]) : "")}</span>`)).join("");
+    },
+    moves({ lg, up }) {
+      const o = DATA.odds && DATA.odds.ok ? DATA.odds : null;
+      if (!o) return `<p class="notes">The odds feed isn't on. Add the ODDS_API_KEY secret to turn on line history.</p>`;
+      const mv = (o.moves && o.moves[lg]) || {}, out = [];
+      for (const r of up) {
+        const h = mv[r[0] + "|" + r[1] + "|" + r[3] + "|" + r[4]]; if (!h || h.length < 2) continue;
+        const f = h[0]; if (f[1] === r[6] && f[2] === r[7]) continue;
+        out.push({ r, f, d: Math.abs((r[6] || 0) - (f[1] || 0)) + Math.abs((r[7] || 0) - (f[2] || 0)) / 2 });
+      }
+      out.sort((a, b) => b.d - a.d);
+      const stamp = o.updated && o.updated[lg] ? `<p class="notes">Lines updated ${esc(new Date(o.updated[lg]).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" }))} ET.</p>` : "";
+      if (!out.length) return `<p class="notes">No upcoming line has moved from where it opened yet.</p>` + stamp;
+      return out.slice(0, 8).map(({ r, f }) => gameBtn(r, lg, `<span class="hm-teams">${tp(r[3], lg)} <span class="sub" style="margin:0">at</span> ${tp(r[4], lg)}</span><span class="hm-line">${f[1] !== r[6] ? "spread " + esc(fav(r, f[1])) + " → <b>" + esc(fav(r, r[6])) + "</b>" : ""}${f[1] !== r[6] && f[2] !== r[7] ? " · " : ""}${f[2] !== r[7] ? "total " + sn(f[2]) + " → <b>" + sn(r[7]) + "</b>" : ""}</span>`)).join("") + stamp;
+    },
+    bets() {
+      const b = Saved.data.bets || [], oc = RE.betOutcome, pf = RE.betProfit;
+      if (!b.length) return `<p class="notes">No bets saved yet. Add one on the Bets page.</p>`;
+      const open = oc ? b.filter((x) => oc(x) === "pending") : [];
+      let prof = 0, w = 0, l = 0;
+      if (oc && pf) for (const x of b) { const o = oc(x), p = pf(x); if (o === "won") w++; else if (o === "lost") l++; if (p !== null && p !== undefined && o !== "pending") prof += p; }
+      const m = (v) => (v < 0 ? "−$" : "+$") + Math.abs(v).toFixed(2);
+      return `<div class="stats" style="margin:0 0 8px"><div class="stat"><span class="k">Open</span><span class="v">${open.length}</span></div><div class="stat"><span class="k">Record</span><span class="v">${w}-${l}</span></div><div class="stat ${prof > 0 ? "ok" : prof < 0 ? "neg" : ""}"><span class="k">Profit</span><span class="v">${m(prof)}</span></div></div>` +
+        open.slice(0, 5).map((x) => `<div class="hm-row"><strong>${esc(x.name || x.type)}</strong><span class="sub" style="margin:0">${esc(x.sport || "")} · ${x.stake != null ? "$" + x.stake + " stake" : "no stake"}${x.toWin != null ? " · to win $" + x.toWin : ""}</span></div>`).join("");
+    },
+    tease({ lg, up }) {
+      if (!up.length) return `<p class="notes">No upcoming games.</p>`;
+      const wk = up[0][1], PTS = 6, out = [];
+      for (const r of up.filter((x) => x[1] === wk && x[6] !== null)) for (const [team, line] of [[r[3], r[6]], [r[4], -r[6]]]) {
+        const k = keysCrossed(line, PTS);
+        if (k.includes(3) && k.includes(7) && ((line >= 1.5 && line <= 2.5) || (line <= -7.5 && line >= -8.5))) out.push({ r, team, line, k });
+      }
+      out.sort((a, b) => a.r[2] < b.r[2] ? -1 : a.r[2] > b.r[2] ? 1 : 0);
+      const sl = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + sn(v);
+      return `<p class="notes" style="margin-top:0">Week ${wk}: dogs of +1.5 to +2.5 and favorites of −7.5 to −8.5, the sides that cross both 3 and 7 when teased ${PTS} points.</p>` + (out.length ? out.slice(0, 10).map((x) => gameBtn(x.r, lg, `<span class="hm-teams">${tp(x.team, lg)} <span class="sub" style="margin:0">${x.r[4] === x.team ? "vs " + esc(x.r[3]) : "at " + esc(x.r[4])}</span></span><span class="hm-line">${sl(x.line)} → <b>${sl(x.line + PTS)}</b> teased</span>`)).join("") : `<p class="notes">No sides fit this week.</p>`);
+    },
+  };
+  const go = (id) => { const b = $(id); if (b) b.click(); };
+  function render() {
+    sync();
+    const c = ctx(), ok = (k) => !L.hidden.includes(k);
+    const tilesVis = L.order.filter((k) => k[0] === "t" && TILES.some((t) => "t:" + t[0] === k));
+    const tileOf = (k) => TILES.find((t) => "t:" + t[0] === k);
+    const shown = (k) => { const t = tileOf(k); if (!t) return true; const el = $(t[3]); return !(el && el.hidden && t[3] !== "sv-btn"); };
+    const ctl = (k, i, n, vert) => editing ? `<span class="hm-ctl"><button type="button" class="mini" data-hm-mv="${k}|-1" ${i === 0 ? "disabled" : ""} aria-label="Move earlier">${vert ? "▲" : "◀"}</button><button type="button" class="mini" data-hm-mv="${k}|1" ${i === n - 1 ? "disabled" : ""} aria-label="Move later">${vert ? "▼" : "▶"}</button><button type="button" class="mini" data-hm-hide="${k}" aria-label="Hide">✕ Hide</button></span>` : "";
+    const tiles = tilesVis.filter((k) => (editing ? shown(k) : ok(k) && shown(k)));
+    const vis = tiles.filter(ok);
+    let h = `<div class="hm-tiles">` + tiles.filter((k) => editing || ok(k)).map((k) => {
+      const t = tileOf(k), i = vis.indexOf(k), hid = !ok(k);
+      return `<div class="hm-tile${hid ? " off" : ""}">${hid ? "" : ""}<button type="button" class="hm-go" data-hm-go="${t[3]}" ${editing ? "tabindex=-1" : ""}><span class="hm-t">${esc(t[1])}</span><span class="sub" style="margin:0">${esc(t[2])}</span></button>${hid ? `<button type="button" class="mini" data-hm-show="${k}">+ Show</button>` : ctl(k, i, vis.length, false)}</div>`;
+    }).join("") + `</div>`;
+    const cards = L.order.filter((k) => k[0] === "c" && CARDS.some((x) => "c:" + x[0] === k)), cv = cards.filter(ok);
+    for (const k of cards) {
+      const [id, title] = CARDS.find((x) => "c:" + x[0] === k), hid = !ok(k);
+      if (hid && !editing) continue;
+      let body = ""; if (!hid) { try { body = card[id](c); } catch (e) { body = `<p class="notes">Couldn't load this card.</p>`; } }
+      h += `<section class="panel hm-card${hid ? " off" : ""}"><div class="panel-head"><h2>${esc(title)}</h2>${hid ? `<button type="button" class="mini" data-hm-show="${k}">+ Show</button>` : ctl(k, cv.indexOf(k), cv.length, true)}</div>${body}</section>`;
+    }
+    if (editing) h += `<p class="notes">Use the arrows to reorder, Hide to remove something, and + Show to bring it back. This layout is saved in this browser. Press Done when you're finished.</p>`;
+    root.innerHTML = h;
+    $("hm-edit").setAttribute("aria-pressed", String(editing)); $("hm-edit").textContent = editing ? "✓ Done" : "✎ Edit layout";
+  }
+  $("hm-edit").addEventListener("click", () => { editing = !editing; render(); });
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
+    if (d.hmGo) { if (editing) return; go(d.hmGo); }
+    else if (d.hmGame) { const [wk, lg] = d.hmGame.split("|"); if (RE.showLines) RE.showLines(+wk, lg); go("tab-tease"); }
+    else if (d.hmMv) {
+      const [k, dir] = d.hmMv.split("|"), vis = L.order.filter((x) => x[0] === k[0] && !L.hidden.includes(x)), i = vis.indexOf(k), j = i + +dir;
+      if (j >= 0 && j < vis.length) { const a = L.order.indexOf(vis[i]), b = L.order.indexOf(vis[j]); [L.order[a], L.order[b]] = [L.order[b], L.order[a]]; save(); render(); }
+    }
+    else if (d.hmHide) { L.hidden.push(d.hmHide); save(); render(); }
+    else if (d.hmShow) { L.hidden = L.hidden.filter((x) => x !== d.hmShow); save(); render(); }
+  });
+  $("tab-home").addEventListener("click", render);
+  Saved.on(() => { if (!$("view-home").hidden) render(); });
+  RE.homeRender = render;
   render();
 })();
 
@@ -2995,6 +3131,7 @@ const Saved = (() => {
     apply(lg);
     try { localStorage.setItem("re-league", lg); } catch (e) { /* storage not available */ }
     if (RE.setLeague) RE.setLeague(lg);
+    if (RE.homeRender) RE.homeRender();
   };
   if (!COL) return;
   $("lg-sw").hidden = false;
