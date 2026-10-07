@@ -3199,14 +3199,20 @@ const Sync = (() => {
   (() => { let ch = false; const by = new Map(POOL.map((p) => [p.id, p])); for (const it of Board.items) { const q = by.get(it.id); if (q && !it.ht && q.ht) { it.ht = q.ht; it.wt = q.wt; ch = true; } } if (ch) Board.save(); })();
   const onBoard = (id) => Board.items.some((x) => x.id === id);
   const posIn = (it, g) => { const G = GROUPS.find((x) => x[0] === g); return !G || !G[2] || G[2].includes(String(it.pos).toUpperCase()); };
-  const POSCOL = { QB: "#d1495b", RB: "#2a9d8f", WR: "#3b82f6", TE: "#d98e04", OL: "#8b5cf6", DL: "#ea580c", EDGE: "#be123c", LB: "#16a34a", DB: "#0891b2" };
+  const POSCOL = { QB: "#1e3a8a", RB: "#2a9d8f", WR: "#3b82f6", TE: "#d98e04", OL: "#8b5cf6", DL: "#ea580c", EDGE: "#be123c", LB: "#16a34a", DB: "#0891b2" };
   const posGroup = (pos) => { const u = String(pos || "").toUpperCase(); const g = GROUPS.find((x) => x[2] && x[2].includes(u)); return g ? g[0] : null; };
   const posPill = (pos) => { const bg = POSCOL[posGroup(pos)] || "#6b7280"; return `<span class="tm pp" style="background:${bg};color:${inkOn(bg)}">${esc(String(pos || "?").toUpperCase())}</span>`; };
   const tag = (t) => (COL && COL.teams[t] ? tp(t, "cfb") : t ? `<span class="tm" style="background:#555;color:#fff;min-width:0">${esc(t)}</span>` : "");
   const meta = (it) => `${posPill(it.pos)} ${tag(it.team)}${it.cls || it.stat ? ` <span class="sub dr-st">${[it.cls ? CLS[it.cls] : "", it.stat].filter(Boolean).map(esc).join(" · ")}</span>` : ""}`;
   const sub = (it) => [it.team, it.cls ? CLS[it.cls] : "", it.stat].filter(Boolean).map(esc).join(" · ");
 
-  function moveTo(id, n) { const i = Board.items.findIndex((x) => x.id === id); if (i < 0) return; const [x] = Board.items.splice(i, 1); Board.items.splice(Math.max(0, Math.min(Board.items.length, n - 1)), 0, x); Board.save(); }
+  // Tiers keep the board in order: Tier 1 first, then 2 to 5, then players with no tier. Within a tier, your order stays.
+  const tk = (it) => (it && it.tier ? +it.tier : 99);
+  function sortTiers() { const before = Board.items.map((x) => x.id).join(); Board.items = Board.items.map((x, i) => [x, i]).sort((a, b) => tk(a[0]) - tk(b[0]) || a[1] - b[1]).map((a) => a[0]); return before !== Board.items.map((x) => x.id).join(); }
+  function setTier(id, t) { const i = Board.items.findIndex((x) => x.id === id); if (i < 0) return; const [x] = Board.items.splice(i, 1); x.tier = t; let at = 0; Board.items.forEach((y, j) => { if (tk(y) <= tk(x)) at = j + 1; }); Board.items.splice(at, 0, x); Board.save(); }
+  function moveTo(id, n) { const i = Board.items.findIndex((x) => x.id === id); if (i < 0) return; const [x] = Board.items.splice(i, 1); const at = Math.max(0, Math.min(Board.items.length, n - 1)); Board.items.splice(at, 0, x);
+    const prev = Board.items[at - 1], next = Board.items[at + 1]; if ((prev && tk(prev) > tk(x)) || (next && tk(next) < tk(x))) x.tier = (prev || next).tier || ""; Board.save(); }
+  if (sortTiers()) Board.save();
   function addPlayers(list) { let n = 0; for (const p of list) if (!Board.items.some((x) => x.id === p.id || (norm(x.name) === norm(p.name) && x.team === p.team))) { Board.items.push(item(p)); n++; } if (n) Board.save(); return n; }
   function parseList(text) {
     let hit = 0, hand = 0; const out = [];
@@ -3318,7 +3324,7 @@ const Sync = (() => {
       if (sty === "paper") {
         c.lineWidth = 3; c.strokeStyle = pc; c.fillStyle = pc + "26"; rr(c, tx, mid - ph / 2, pw, ph, ph / 2); c.fill(); c.stroke(); c.fillStyle = pc; c.font = `${hw} ${pfs}px ${HF}`; c.textAlign = "center"; c.fillText(pt, tx + pw / 2, mid + 2);
         if (sw) { c.textAlign = "left"; c.font = `${hw} ${pfs}px ${HF}`; c.fillStyle = "#25231e"; c.fillText(ab, tx + pw + 14, mid + 2); c.strokeStyle = sc; c.lineWidth = 4; c.beginPath(); c.moveTo(tx + pw + 12, mid + ph / 2 - 2); c.lineTo(tx + pw + 12 + sw - 10, mid + ph / 2 - 4); c.stroke(); }
-      } else { const f = sty === "card" ? `400 ${pfs}px ${BEB}` : `800 ${pfs}px ${SANS}`; const w1 = pillAt(pt, tx, mid, pfs, pc, inkOn(pc), f); if (sw) pillAt(ab, tx + w1 + 10, mid, pfs, sc, inkOn(sc), f); }
+      } else { const f = sty === "card" ? `400 ${pfs}px ${BEB}` : `800 ${pfs}px ${SANS}`; const ol = sty === "dark" ? "rgba(255,255,255,.4)" : null; const w1 = pillAt(pt, tx, mid, pfs, pc, inkOn(pc), f, ol); if (sw) pillAt(ab, tx + w1 + 10, mid, pfs, sc, inkOn(sc), f, ol); }
       c.restore();
     });
     // footer
@@ -3339,10 +3345,11 @@ const Sync = (() => {
     h += `<div class="dr-bar"><h2 style="margin:0">My big board</h2><span class="sub" style="margin:0">${Board.items.length} ${Board.items.length === 1 ? "player" : "players"}</span><span style="margin-left:auto;display:flex;gap:6px">${sel(V.grp, "dr-grp", GROUPS.map((g) => [g[0], g[1]]))}<button type="button" class="chip" data-dr="edit" aria-pressed="${V.edit}">${V.edit ? "✓ Done" : "✎ Edit"}</button></span></div>`;
     const rows = Board.items.map((it, i) => ({ it, n: i + 1 })).filter((x) => posIn(x.it, V.grp));
     if (!Board.items.length) h += `<p class="notes">Your board is empty. Search for a player above, or paste a list. Then press Edit to set ranks, tiers and notes.</p>`;
-    let lastTier = null;
+    let lastTier = null; const anyTier = Board.items.some((x) => x.tier);
     for (const { it, n } of rows) {
-      if (it.tier && it.tier !== lastTier) h += `<div class="dr-tier">Tier ${esc(it.tier)}</div>`;
-      lastTier = it.tier || lastTier;
+      const cur = it.tier || "";
+      if (cur !== lastTier && (cur || anyTier)) h += `<div class="dr-tier">${cur ? "Tier " + esc(cur) : "No tier"}</div>`;
+      lastTier = cur;
       h += `<div class="dr-card${n <= 3 ? " top" : ""}" data-dr-open="${esc(it.id)}" tabindex="0" role="button" aria-label="Open ${esc(it.name)}"><div class="dr-rk">${n}</div><div class="dr-main"><div class="dr-nm">${esc(it.name)}</div><div class="dr-meta">${meta(it)}</div>${it.note && !V.edit ? `<div class="dr-nt">“${esc(it.note)}”</div>` : ""}</div>${phys(it) ? `<div class="dr-phys"><b>${esc(fmtHt(it.ht))}</b><span>${it.wt ? it.wt + " lb" : ""}</span></div>` : "<div></div>"}` +
         (V.edit ? `<div class="dr-ctl"><input class="proj-in dr-rank" type="number" min="1" max="${Board.items.length}" inputmode="numeric" value="${n}" data-dr-rank="${esc(it.id)}" aria-label="Rank of ${esc(it.name)}"><select data-dr-tier="${esc(it.id)}" aria-label="Tier"><option value="">No tier</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}" ${String(it.tier) === String(t) ? "selected" : ""}>Tier ${t}</option>`).join("")}</select>` +
         `<input class="proj-in dr-note" type="text" data-dr-note="${esc(it.id)}" value="${esc(it.note)}" placeholder="Note" maxlength="140" aria-label="Note for ${esc(it.name)}">` +
@@ -3406,7 +3413,7 @@ const Sync = (() => {
     else if (t.id === "dr-st") { V.stitle = t.value; V.simg = ""; }
     else if (d.drOwn) { const o = owners(order().slice(0, 32)); if (!Board.owners) Board.owners = {}; Board.owners[d.drOwn] = t.value; Board.save(); render(); }
     else if (d.drRank) { const n = parseInt(t.value, 10); if (Number.isFinite(n)) moveTo(d.drRank, n); render(); }
-    else if (d.drTier !== undefined) { const x = Board.items.find((y) => y.id === d.drTier); if (x) { x.tier = t.value; Board.save(); render(); } }
+    else if (d.drTier !== undefined) { setTier(d.drTier, t.value); render(); }
     else if (d.drNote !== undefined) { const x = Board.items.find((y) => y.id === d.drNote); if (x) { x.note = t.value.trim(); Board.save(); } }
     else if (d.drSlot !== undefined) { if (t.value) Board.mock[d.drSlot] = t.value; else delete Board.mock[d.drSlot]; Board.save(); render(); }
   });
@@ -3436,7 +3443,7 @@ const Sync = (() => {
   md.addEventListener("change", (e) => {
     const t = e.target, x = Board.items.find((y) => y.id === V.open); if (!x) return;
     if (t.dataset.dmRank !== undefined) { const n = parseInt(t.value, 10); if (Number.isFinite(n)) moveTo(x.id, n); }
-    else if (t.dataset.dmTier !== undefined) { x.tier = t.value; Board.save(); }
+    else if (t.dataset.dmTier !== undefined) { setTier(x.id, t.value); }
     else if (t.dataset.dmNote !== undefined) { x.note = t.value.trim(); Board.save(); }
     render(); renderDetail();
   });
