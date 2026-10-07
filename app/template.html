@@ -432,6 +432,11 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .dr-det summary { font-size: 15px; letter-spacing: 0; text-transform: none; border-left: 0; padding-left: 0; cursor: pointer; font-weight: 600; }
 .dr-det > * { margin-top: 6px; }
 .dr-note { flex: 1 0 100%; order: 10; min-width: 0; }
+.sw { padding: 0 5px; border-radius: 4px; }
+.sw.g2 { background: color-mix(in srgb, var(--accent) 42%, transparent); }
+.sw.g1 { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.sw.r1 { background: color-mix(in srgb, var(--bad) 18%, transparent); }
+.sw.r2 { background: color-mix(in srgb, var(--bad) 42%, transparent); }
 .dr-img { width: 100%; max-width: 560px; border-radius: 10px; margin-top: 8px; display: block; }
 .dr-pick { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
 .dr-pick select { flex: 1; min-width: 0; }
@@ -777,6 +782,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
   <div class="view" id="view-teams" role="tabpanel" aria-labelledby="tab-teams" hidden>
     <section class="controls pc" aria-label="Team stats settings">
       <div class="field"><span class="lbl" id="ts-side-l">Show</span><div class="chips" id="ts-side" role="group" aria-labelledby="ts-side-l"></div></div>
+      <div class="field"><label class="lbl" for="ts-conf">Teams</label><select id="ts-conf"></select></div>
       <div class="field"><label class="lbl" for="ts-win">Games</label><select id="ts-win"><option value="0">This season</option><option value="3">Last 3 games</option><option value="5">Last 5 games</option></select></div>
     </section>
     <p class="tiles-head" id="ts-head" style="margin:0"></p>
@@ -939,6 +945,31 @@ const TS = (() => {
   }
   return { table, teams, ok: teams.length > 0 };
 })();
+// College team stats: one row per team per game against another FBS team [week, team, opp, pass, rush, pts, opp pass, opp rush, opp pts]
+const CS = (() => {
+  const C = DATA.cstats && DATA.cstats.ok && COL ? DATA.cstats : null, rows = C ? C.rows : [], by = new Map();
+  for (const r of rows) (by.get(r[1]) || by.set(r[1], []).get(r[1])).push(r);
+  function one(t, last) {
+    let g = (by.get(t) || []).slice().sort((a, b) => a[0] - b[0]); if (last) g = g.slice(-last);
+    const n = g.length, o = { pass: 0, rush: 0, pts: 0 }, d = { pass: 0, rush: 0, pts: 0 };
+    for (const r of g) { o.pass += r[3]; o.rush += r[4]; o.pts += r[5]; d.pass += r[6]; d.rush += r[7]; d.pts += r[8]; }
+    const f = (x) => (n ? Math.round((x / n) * 10) / 10 : null), mk = (z) => ({ pass: f(z.pass), rush: f(z.rush), total: f(z.pass + z.rush), pts: f(z.pts) });
+    return { team: t, n, off: mk(o), def: mk(d), conf: (COL.teams[t] && COL.teams[t].conf) || "" };
+  }
+  function table(last) {
+    const all = [...by.keys()].map((t) => one(t, last)).filter((x) => x.n);
+    for (const k of ["pass", "rush", "total", "pts"]) {
+      const so = [...all].sort((a, b) => b.off[k] - a.off[k]), sd = [...all].sort((a, b) => a.def[k] - b.def[k]);
+      so.forEach((x, i) => { (x.ro = x.ro || {})[k] = i + 1; });
+      sd.forEach((x, i) => { (x.rd = x.rd || {})[k] = i + 1; });
+    }
+    return all;
+  }
+  return { table, ok: rows.length > 0 };
+})();
+const NFLDIV = { "AFC East": ["BUF", "MIA", "NE", "NYJ"], "AFC North": ["BAL", "CIN", "CLE", "PIT"], "AFC South": ["HOU", "IND", "JAX", "TEN"], "AFC West": ["DEN", "KC", "LV", "LAC"], "NFC East": ["DAL", "NYG", "PHI", "WAS"], "NFC North": ["CHI", "DET", "GB", "MIN"], "NFC South": ["ATL", "CAR", "NO", "TB"], "NFC West": ["ARI", "LA", "SEA", "SF"] };
+// Shade a team's rank: dark green top 10%, light green next 20%, dark red bottom 10%, light red the 20% above that, the middle is plain
+const bandBg = (rank, of) => { if (!of || of < 2) return ""; const f = (rank - 1) / (of - 1), [c, p] = f < 0.1 ? ["--accent", 42] : f < 0.3 ? ["--accent", 18] : f <= 0.7 ? [null, 0] : f <= 0.9 ? ["--bad", 18] : ["--bad", 42]; return c ? ` style="background:color-mix(in srgb, var(${c}) ${p}%, transparent)"` : ""; };
 // Shade a table cell blue when v>0 (over) or orange when v<0 (under); v runs from -1 to 1.
 const tint = (v) => (v === 0 || !Number.isFinite(v) ? "" : ` style="background:color-mix(in srgb, var(${v > 0 ? "--over" : "--under"}) ${Math.min(42, Math.round(Math.abs(v) * 42))}%, transparent)"`);
 
@@ -2060,7 +2091,7 @@ const Sync = (() => {
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
       html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
-        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
+        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou mu"><button type="button" class="mini" data-mu="${esc(g[3])}|${esc(g[4])}|${g[1]}" title="Compare both teams' offense and defense" aria-label="Team stats matchup">Stats</button></span><span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
   }
@@ -2077,6 +2108,8 @@ const Sync = (() => {
     if (!e.target.closest(".ou")) warn = "";
     const t = e.target.closest("[data-team]");
     if (t) { openTeam(t.dataset.team); return; }
+    const mu = e.target.closest("[data-mu]");
+    if (mu) { const [a, b, w] = mu.dataset.mu.split("|"); openMatchup(a, b, +w); return; }
     const h = e.target.closest("[data-h2h]");
     if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); return; }
     const b = e.target.closest("[data-pick]");
@@ -2218,13 +2251,13 @@ const Sync = (() => {
   }
   let tmWin = 0, tmTeam = null;
   const tsBlock = (team) => {
-    if (!TS.ok || LG !== "nfl") return "";
-    const tb = TS.table(tmWin), r = tb.find((x) => x.team === team);
+    const X = isC() ? CS : TS; if (!X.ok) return "";
+    const tb = X.table(tmWin), r = tb.find((x) => x.team === team);
     if (!r) return "";
     const c = (v, rk) => (v === null ? "–" : `${v.toFixed(1)} <span class="sub" style="display:inline">${ordn(rk)}</span>`);
     return `<h3 style="margin:12px 0 4px;font-size:14px">Yards per game</h3><div class="chips" style="margin-bottom:6px">` + [[0, "This season"], [3, "Last 3"], [5, "Last 5"]].map(([v, l]) => `<button type="button" class="chip" data-tmw="${v}" aria-pressed="${tmWin === v}">${l}</button>`).join("") + `</div>` +
       `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th></th><th class="num">Offense</th><th class="num">Defense (allowed)</th></tr></thead><tbody>` +
-      [["total", "Total yards"], ["pass", "Passing yards"], ["rush", "Rushing yards"], ["pts", "Points"]].map(([k, l]) => `<tr><td>${l}</td><td class="num">${c(r.off[k], r.ro[k])}</td><td class="num">${c(r.def[k], r.rd[k])}</td></tr>`).join("") +
+      [["total", "Total yards"], ["pass", "Passing yards"], ["rush", "Rushing yards"], ["pts", "Points"]].map(([k, l]) => `<tr><td>${l}</td><td class="num"${bandBg(r.ro[k], tb.length)}>${c(r.off[k], r.ro[k])}</td><td class="num"${bandBg(r.rd[k], tb.length)}>${c(r.def[k], r.rd[k])}</td></tr>`).join("") +
       `</tbody></table></div><p class="notes" style="margin:6px 0 0">${r.n} game${r.n === 1 ? "" : "s"}. Offense: 1st is the most. Defense: 1st is the fewest allowed. Passing is net of sacks.</p>`;
   };
   function openTeam(team) {
@@ -2248,6 +2281,29 @@ const Sync = (() => {
       }).join("") + `</tbody></table></div><p class="notes" style="margin-top:8px">Lines are the single spread and total in the data file for each game, so results can differ slightly from your book's closing numbers. Past results describe what happened and do not predict the next game.</p>`;
     $("tm-modal").hidden = false;
     $("tm-modal").querySelector(".modal-card").style.setProperty("--tc", tcol(team));
+    $("tm-modal").querySelector(".modal-card").focus();
+  }
+  // quick matchup view: both teams' offense against the other's defense, shaded by league rank
+  let muWin = 0, muArgs = null;
+  function openMatchup(away, home, wk) {
+    muArgs = [away, home, wk];
+    const X = isC() ? CS : TS, tb = X.ok ? X.table(muWin) : [], A = tb.find((x) => x.team === away), H = tb.find((x) => x.team === home), N = tb.length, nm = (t) => TEAM_NAMES[t] || t;
+    const g = SCH.find((r) => r[0] === SEASON && r[1] === wk && r[3] === away && r[4] === home);
+    const sp = g && g[6] !== null ? `${esc(away)} ${spr(sideLine(g, away))} · total ${g[7] === null ? "–" : g[7]}` : "";
+    let h = `<h2 id="tm-title">${esc(nm(away))} at ${esc(nm(home))}</h2><p class="meta">${tp(away)} ${tp(home)} · week ${wk}${sp ? " · " + sp : ""}</p>`;
+    if (!A || !H) {
+      h += `<p class="notes">${X.ok ? "Team stats aren't in yet for one of these teams." : "Team stats aren't available right now."}</p>`;
+    } else {
+      const c = (v, rk) => `${v.toFixed(1)} <span class="sub" style="display:inline">${ordn(rk)}</span>`;
+      const tm = (t) => (isC() ? (COL.teams[t] && COL.teams[t].a) || t : t), blk = (O, D) => `<h3 style="margin:14px 0 4px;font-size:14px">${esc(nm(O.team))} offense vs ${esc(nm(D.team))} defense</h3><div class="tablewrap" style="margin-top:0"><table><thead><tr><th></th><th class="num">${esc(tm(O.team))} off</th><th class="num">${esc(tm(D.team))} def</th><th class="num">Edge</th></tr></thead><tbody>` +
+        [["total", "Total"], ["pass", "Pass"], ["rush", "Rush"], ["pts", "Points"]].map(([k, l]) => { const gap = D.rd[k] - O.ro[k], e = gap >= 0.25 * N ? tp(O.team) : gap <= -0.25 * N ? tp(D.team) : '<span class="sub" style="margin:0">even</span>'; return `<tr><td>${l}</td><td class="num"${bandBg(O.ro[k], N)}><strong>${c(O.off[k], O.ro[k])}</strong></td><td class="num"${bandBg(D.rd[k], N)}><strong>${c(D.def[k], D.rd[k])}</strong></td><td class="num">${e}</td></tr>`; }).join("") + `</tbody></table></div>`;
+      h += `<div class="chips" style="margin:8px 0 0">` + [[0, "This season"], [3, "Last 3"], [5, "Last 5"]].map(([v, l]) => `<button type="button" class="chip" data-muw="${v}" aria-pressed="${muWin === v}">${l}</button>`).join("") + `</div>` + blk(A, H) + blk(H, A);
+      h += `<p class="notes" style="margin:8px 0 0">Per game, ranked among ${N} ${isC() ? "FBS teams (games against FBS opponents only; schedule strength is not adjusted)" : "teams"}. Offense: 1st is the most. Defense: 1st is the fewest allowed. Dark green is the top 10%, light green the next 20%, light red and dark red the bottom. Defense columns show what that defense allows. Edge shows who has the better of that matchup when the two ranks are far apart. ${A.n} and ${H.n} games played.</p>`;
+    }
+    h += `<div class="chips" style="margin-top:10px"><button type="button" class="chip" data-mut="${esc(away)}">${esc(away)} trends</button><button type="button" class="chip" data-mut="${esc(home)}">${esc(home)} trends</button><button type="button" class="chip" data-h2h="${esc(away)}|${esc(home)}">Head to head</button></div>`;
+    $("tm-body").innerHTML = h;
+    $("tm-modal").hidden = false;
+    $("tm-modal").querySelector(".modal-card").style.setProperty("--tc", tcol(away));
     $("tm-modal").querySelector(".modal-card").focus();
   }
   // head to head: every regular-season meeting since 2015
@@ -2278,7 +2334,7 @@ const Sync = (() => {
     $("tm-modal").querySelector(".modal-card").style.setProperty("--tc", tcol(a));
     $("tm-modal").querySelector(".modal-card").focus();
   }
-  $("tm-body").addEventListener("click", (e) => { const w = e.target.closest("[data-tmw]"); if (w) { tmWin = +w.dataset.tmw; openTeam(tmTeam); return; } const h = e.target.closest("[data-h2h]"); if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); } });
+  $("tm-body").addEventListener("click", (e) => { const mw = e.target.closest("[data-muw]"); if (mw && muArgs) { muWin = +mw.dataset.muw; openMatchup(...muArgs); return; } const mt = e.target.closest("[data-mut]"); if (mt) { openTeam(mt.dataset.mut); return; } const w = e.target.closest("[data-tmw]"); if (w) { tmWin = +w.dataset.tmw; openTeam(tmTeam); return; } const h = e.target.closest("[data-h2h]"); if (h) { const [a, b] = h.dataset.h2h.split("|"); openH2H(a, b); } });
   const closeTeam = () => { $("tm-modal").hidden = true; };
   $("tm-close").addEventListener("click", closeTeam);
   $("tm-modal").addEventListener("click", (e) => { if (e.target === $("tm-modal")) closeTeam(); });
@@ -2779,31 +2835,51 @@ const Sync = (() => {
   apply();
 })();
 
-// ---------- Teams tab: offense and defense yardage ----------
+// ---------- Teams tab: offense and defense yardage (NFL, and college when the college stats loaded) ----------
 (function () {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  if (!TS.ok) { $("tab-teams").hidden = true; return; }
-  const T = { side: "def", last: 0, sort: "total", worst: false };
-  const nm = (t) => TEAM_NAMES[t] || t;
+  if (!TS.ok && !CS.ok) { $("tab-teams").hidden = true; return; }
+  const T = { side: "def", last: 0, sort: "total", worst: false, f: { nfl: "all", cfb: "all" } };
+  const lg = () => (curLg() === "cfb" && CS.ok ? "cfb" : "nfl");
+  const nm = (t) => (lg() === "cfb" ? t : TEAM_NAMES[t] || t);
   const COLS = [["total", "Total"], ["pass", "Pass"], ["rush", "Rush"], ["pts", "Points"]];
-  const rkBg = (rank, of) => { const soft = 1 - (rank - 1) / (of - 1); const d = Math.abs(soft - 0.5) * 2; return d < 0.15 ? "" : ` style="background:color-mix(in srgb, var(${soft > 0.5 ? "--accent" : "--bad"}) ${Math.round(8 + d * 26)}%, transparent)"`; };
+  const P4 = ["SEC", "Big Ten", "Big 12", "ACC"];
+  const inGroup = (r, f) => {
+    if (f === "all") return true;
+    if (lg() === "nfl") return f === "AFC" || f === "NFC" ? (Object.entries(NFLDIV).some(([d, ts]) => d.startsWith(f) && ts.includes(r.team))) : (NFLDIV[f] || []).includes(r.team);
+    return f === "p4" ? P4.includes(r.conf) || r.team === "Notre Dame" : f === "g5" ? !(P4.includes(r.conf) || r.team === "Notre Dame") : r.conf === f.slice(5);
+  };
+  function options(rows) {
+    if (lg() === "nfl") return [["all", "All teams"], ["AFC", "AFC"], ["NFC", "NFC"], ...Object.keys(NFLDIV).map((d) => [d, d])];
+    return [["all", "All FBS"], ["p4", "Power 4 + Notre Dame"], ["g5", "Group of 5 and others"], ...[...new Set(rows.map((r) => r.conf).filter(Boolean))].sort().map((c) => ["conf:" + c, c])];
+  }
   function render() {
-    $("ts-side").innerHTML = [["def", "Defenses"], ["off", "Offenses"]].map(([k, l]) => `<button type="button" class="chip" data-side="${k}" aria-pressed="${T.side === k}">${l}</button>`).join("");
-    const rows = TS.table(T.last), rk = T.side === "off" ? "ro" : "rd", val = T.side === "off" ? "off" : "def";
+    const L = lg(), X = L === "cfb" ? CS : TS;
+    $("ts-side").innerHTML = [["off", "Offense"], ["def", "Defense"]].map(([k, l]) => `<button type="button" class="chip" data-side="${k}" aria-pressed="${T.side === k}">${l}</button>`).join("");
+    const all = X.ok ? X.table(T.last) : [], rk = T.side === "off" ? "ro" : "rd", val = T.side === "off" ? "off" : "def", N = all.length;
+    const opts = options(all); if (!opts.some((o) => o[0] === T.f[L])) T.f[L] = "all";
+    $("ts-conf").innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}" ${v === T.f[L] ? "selected" : ""}>${esc(l)}</option>`).join("");
+    const rows = all.filter((r) => inGroup(r, T.f[L]));
     rows.sort((a, b) => (T.worst ? b[rk][T.sort] - a[rk][T.sort] : a[rk][T.sort] - b[rk][T.sort]) || a.team.localeCompare(b.team));
     const unit = (k) => (k === "pts" ? "pts/game" : "yds/game");
-    $("ts-head").textContent = `${T.side === "def" ? "Defenses: yards and points allowed" : "Offenses: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : DATA.season + " season"} · ${rows.length} teams · ${T.worst ? "worst" : "best"} first, tap the column again to flip`;
+    $("ts-head").textContent = `${L === "cfb" ? "College " : ""}${T.side === "def" ? "Defense: yards and points allowed" : "Offense: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : (L === "cfb" ? COL.season : DATA.season) + " season"} · ${rows.length}${rows.length === N ? "" : " of " + N} teams · ${T.worst ? "worst" : "best"} first, tap the column again to flip`;
+    $("ts-notes").textContent = L === "cfb"
+      ? "Per game, against FBS opponents only (games against smaller schools are left out). Rank is among all FBS teams, even when you filter to one conference: dark green is the top 10%, light green the next 20%, light red and dark red the bottom. For defense, 1st means the fewest allowed. Yards and points are not adjusted for schedule strength, so a team that has played an easy schedule can look better than it is. Passing yards are net of sacks. Tap a team for its spread and over/under record."
+      : "Per game, with the league rank next to it. Offense: 1st is the most. Defense: 1st is the fewest allowed. Dark green is the top 10% of teams, light green the next 20%, light red and dark red the bottom. The rank stays the league rank when you filter to a conference or division. Passing yards are net of sacks, so pass plus rush equals total. A defense's numbers are what opponents gained against it. Tap a team for its spread and over/under record, head-to-head and game-by-game numbers.";
     $("ts-table").innerHTML = `<thead><tr><th class="num">#</th><th>Team</th>` + COLS.map(([k, l]) => `<th class="num"><button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${T.sort === k}" title="${T.sort === k ? (T.worst ? "Worst first. Tap for best first" : "Best first. Tap for worst first") : "Sort by " + l}">${l}${T.sort === k ? (T.worst ? " ▲" : " ▼") : ""}</button></th>`).join("") + `<th class="num fl">Games</th></tr></thead><tbody>` +
-      rows.map((r, i) => `<tr style="--tc:${tcol(r.team)}"><td class="num">${r[rk][T.sort]}</td><td><button type="button" class="tmpill" data-team="${r.team}" aria-label="Open ${esc(nm(r.team))} stats">${teamPill(r.team)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
-        COLS.map(([k]) => `<td class="num"${rkBg(r[rk][k], rows.length)} title="${unit(k)}"><strong>${r[val][k].toFixed(1)}</strong><span class="sub">${ordn(r[rk][k])}</span></td>`).join("") + `<td class="num fl">${r.n}</td></tr>`).join("") + "</tbody>";
+      rows.map((r) => `<tr style="--tc:${tcol(r.team, L)}"><td class="num">${r[rk][T.sort]}</td><td><button type="button" class="tmpill" data-team="${esc(r.team)}" aria-label="Open ${esc(nm(r.team))} stats">${tp(r.team, L)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
+        COLS.map(([k]) => `<td class="num"${bandBg(r[rk][k], N)} title="${unit(k)}"><strong>${r[val][k].toFixed(1)}</strong><span class="sub">${ordn(r[rk][k])}</span></td>`).join("") + `<td class="num fl">${r.n}</td></tr>`).join("") + "</tbody>";
   }
   $("ts-side").addEventListener("click", (e) => { const b = e.target.closest("button[data-side]"); if (b) { T.side = b.dataset.side; render(); } });
   $("ts-win").addEventListener("change", (e) => { T.last = +e.target.value; render(); });
+  $("ts-conf").addEventListener("change", (e) => { T.f[lg()] = e.target.value; render(); });
   $("ts-table").addEventListener("click", (e) => {
     const s = e.target.closest("button[data-sort]"); if (s) { if (T.sort === s.dataset.sort) T.worst = !T.worst; else { T.sort = s.dataset.sort; T.worst = false; } render(); return; }
     const t = e.target.closest("[data-team]"); if (t && RE.openTeam) RE.openTeam(t.dataset.team);
   });
+  RE.teamsRender = render;
+  RE.collegeStats = CS.ok;
   render();
 })();
 
@@ -3628,13 +3704,13 @@ const Sync = (() => {
     for (const id of NFLONLY) {
       const el = $(id);
       if (!(id in wasHidden)) wasHidden[id] = el.hidden;
-      el.hidden = lg === "cfb" ? true : wasHidden[id];
+      el.hidden = lg === "cfb" ? !(id === "tab-teams" && CS.ok) : wasHidden[id];
     }
     if (lg === "cfb") {
       const cur = document.querySelector('.tabs [aria-selected="true"]');
-      if (cur && NFLONLY.includes(cur.id)) $("tab-tease").click();
+      if (cur && cur.hidden) $("tab-tease").click();
       const wk = COL.week ? `, next up is week ${COL.week}` : "";
-      $("src").textContent = `College football (FBS), season ${COL.season}${wk}. Lines and teasers only. Source: CollegeFootballData.com.`;
+      $("src").textContent = `College football (FBS), season ${COL.season}${wk}. ${CS.ok ? "Lines, teasers and team stats" : "Lines and teasers only"}. Source: CollegeFootballData.com.`;
     } else $("src").textContent = SRC;
     $("lg-sw").innerHTML = [["nfl", "NFL"], ["cfb", "College"]].map(([k, l]) => `<button type="button" class="chip" data-lg="${k}" aria-pressed="${lg === k}">${l}</button>`).join("");
   }
@@ -3643,6 +3719,7 @@ const Sync = (() => {
     apply(lg);
     try { localStorage.setItem("re-league", lg); } catch (e) { /* storage not available */ }
     if (RE.setLeague) RE.setLeague(lg);
+    if (RE.teamsRender) RE.teamsRender();
     if (RE.homeRender) RE.homeRender();
   };
   if (!COL) return;

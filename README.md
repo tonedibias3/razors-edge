@@ -44,7 +44,7 @@ You can also just load a CSV on the page itself. That works instantly but only i
   - `draft.py` prospect search pool for the Draft board (CollegeFootballData, reused for about a day)
   - `odds.py` current lines and line history (The Odds API)
 - `app/` the page (`template.html`), its logic (`core.js`) and the built-in salary file.
-- `tests/` `smoke_test.js` runs before every publish (if it fails, the old site stays up); `test_college.py`, `test_odds.py` and `test_draft.py` check the college, odds and draft code with made-up data.
+- `tests/` `smoke_test.js` runs before every publish (if it fails, the old site stays up); `test_college.py`, `test_odds.py` and `test_draft.py` and `test_cfbstats.py` check the college, odds, draft and college-stats code with made-up data.
 - `.github/workflows/refresh.yml` the schedule and the publish steps.
 
 ## Run it yourself
@@ -57,3 +57,7 @@ python tests/test_odds.py
 
 ### Draft extras
 - Browse prospects by position or school (sorted by this season's main stat), share the big board as a PNG (Top 10/25/32), and a mock draft that follows traded 2027 first-round picks (editable with "Edit pick owners").
+
+### Team stats
+- Teams tab: offense/defense yards and points per game with rank shading, NFC/AFC and division filter; College (via the League switch) adds a conference filter. College stats come from `pipeline/cfbstats.py` (CollegeFootballData `/games/teams`, FBS opponents only); if that feed fails the page just leaves college stats out.
+- Lines tab: a Stats button on each game opens both teams' offense vs defense side by side.
