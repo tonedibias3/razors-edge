@@ -432,6 +432,7 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .dr-det summary { font-size: 15px; letter-spacing: 0; text-transform: none; border-left: 0; padding-left: 0; cursor: pointer; font-weight: 600; }
 .dr-det > * { margin-top: 6px; }
 .dr-note { flex: 1 0 100%; order: 10; min-width: 0; }
+.dr-img { width: 100%; max-width: 560px; border-radius: 10px; margin-top: 8px; display: block; }
 .dr-pick { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
 .dr-pick select { flex: 1; min-width: 0; }
 .dr-pn { width: 26px; text-align: right; font-weight: 700; }
@@ -1005,22 +1006,22 @@ const Saved = (() => {
 
 // ---------- Your draft big board and mock draft picks: kept in this browser, and included in the Saved backup ----------
 const Board = (() => {
-  const KEY = "re-board-v1", b = { items: [], mock: {}, never: [], t: 0 };
-  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; if (Array.isArray(r.never)) b.never = r.never; if (typeof r.t === "number") b.t = r.t; } } catch (e) { /* storage not available */ }
+  const KEY = "re-board-v1", b = { items: [], mock: {}, never: [], owners: {}, t: 0 };
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; if (Array.isArray(r.never)) b.never = r.never; if (r.owners && typeof r.owners === "object") b.owners = r.owners; if (typeof r.t === "number") b.t = r.t; } } catch (e) { /* storage not available */ }
   const subs = [];
   b.on = (f) => subs.push(f);
-  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock, never: b.never, t: b.t })); } catch (e) { /* storage not available */ } };
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock, never: b.never, owners: b.owners, t: b.t })); } catch (e) { /* storage not available */ } };
   b.save = () => { b.t = Date.now(); persist(); subs.forEach((f) => f()); };
-  b.payload = () => ({ t: b.t, items: b.items, mock: b.mock, never: b.never });
+  b.payload = () => ({ t: b.t, items: b.items, mock: b.mock, never: b.never, owners: b.owners });
   b.mergeRemote = (r) => {
     if (!r || typeof r.t !== "number" || !Array.isArray(r.items)) return;
     if (b.t === 0 && b.items.length) { for (const x of r.items) if (!b.items.some((y) => y.id === x.id)) b.items.push(x); for (const x of Array.isArray(r.never) ? r.never : []) if (!b.never.some((y) => y.k === x.k)) b.never.push(x); b.save(); return; }
-    if (r.t <= b.t) return; b.items = r.items; b.mock = r.mock && typeof r.mock === "object" ? r.mock : {}; b.never = Array.isArray(r.never) ? r.never : []; b.t = r.t; persist(); subs.forEach((f) => f()); };
+    if (r.t <= b.t) return; b.items = r.items; b.mock = r.mock && typeof r.mock === "object" ? r.mock : {}; b.never = Array.isArray(r.never) ? r.never : []; b.owners = r.owners && typeof r.owners === "object" ? r.owners : {}; b.t = r.t; persist(); subs.forEach((f) => f()); };
   const ex = Saved.exportJSON, im = Saved.importJSON;
-  Saved.exportJSON = () => { const o = JSON.parse(ex()); o.board = b.items; o.mock = b.mock; o.never = b.never; return JSON.stringify(o, null, 1); };
+  Saved.exportJSON = () => { const o = JSON.parse(ex()); o.board = b.items; o.mock = b.mock; o.never = b.never; o.owners = b.owners; return JSON.stringify(o, null, 1); };
   Saved.importJSON = (text) => {
     const res = im(text); if (res.error) return res;
-    try { const r = JSON.parse(text); let n = 0; for (const x of Array.isArray(r.board) ? r.board : []) if (x && x.id && !b.items.some((y) => y.id === x.id)) { b.items.push(x); n++; } let m = 0; for (const x of Array.isArray(r.never) ? r.never : []) if (x && x.k && !b.never.some((y) => y.k === x.k)) { b.never.push(x); m++; } if (n) { if (r.mock && !Object.keys(b.mock).length) b.mock = r.mock; } if (n || m) { b.save(); res.added += n + m; } } catch (e) { /* ignore */ }
+    try { const r = JSON.parse(text); let n = 0; for (const x of Array.isArray(r.board) ? r.board : []) if (x && x.id && !b.items.some((y) => y.id === x.id)) { b.items.push(x); n++; } let m = 0; for (const x of Array.isArray(r.never) ? r.never : []) if (x && x.k && !b.never.some((y) => y.k === x.k)) { b.never.push(x); m++; } if (n) { if (r.mock && !Object.keys(b.mock).length) b.mock = r.mock; } if (r.owners && typeof r.owners === "object" && !Object.keys(b.owners).length && Object.keys(r.owners).length) { b.owners = r.owners; n++; } if (n || m) { b.save(); res.added += n + m; } } catch (e) { /* ignore */ }
     return res;
   };
   return b;
@@ -3181,10 +3182,10 @@ const Sync = (() => {
   const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/\s+/g, " ").trim();
   const DR = DATA.draft && DATA.draft.ok ? DATA.draft : null;
-  const POOL = DR ? DR.pool.map((r) => ({ id: "p" + r[0], name: r[1], pos: r[2], team: r[3], conf: r[4], cls: r[5], ht: r[6], wt: r[7], stat: r[8], k: norm(r[1] + " " + r[3] + " " + r[2]) })) : [];
+  const POOL = DR ? DR.pool.map((r) => ({ id: "p" + r[0], name: r[1], pos: r[2], team: r[3], conf: r[4], cls: r[5], ht: r[6], wt: r[7], stat: r[8], sc: r[9] || 0, k: norm(r[1] + " " + r[3] + " " + r[2]) })) : [];
   const BYNAME = new Map(); for (const p of POOL) { const k = norm(p.name); (BYNAME.get(k) || BYNAME.set(k, []).get(k)).push(p); }
   const GROUPS = [["all", "All positions", null], ["QB", "QB", ["QB"]], ["RB", "RB", ["RB", "FB", "APB"]], ["WR", "WR", ["WR"]], ["TE", "TE", ["TE"]], ["OL", "OL", ["OL", "OT", "OG", "C", "IOL"]], ["DL", "DL", ["DL", "DT", "NT"]], ["EDGE", "EDGE", ["DE", "EDGE"]], ["LB", "LB", ["LB", "ILB", "OLB"]], ["DB", "DB", ["DB", "CB", "S", "FS", "SS"]]];
-  const V = { mode: "board", grp: "all", q: "", note: "", edit: false };
+  const V = { mode: "board", grp: "all", q: "", note: "", edit: false, browse: false, bg: "all", bs: "", bsort: "prod", bshow: 30, trades: false, share: false, stitle: "My Big Board", ssize: "10", simg: "" };
   const CLS = { 3: "Jr", 4: "Sr", 5: "5th" };
   const uid = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const item = (p) => ({ id: p.id || uid(), name: p.name, pos: p.pos || "", team: p.team || "", cls: p.cls || null, stat: p.stat || "", tier: "", note: "", custom: !p.id });
@@ -3221,12 +3222,77 @@ const Sync = (() => {
     const pct = (x) => (x.w + x.tie / 2) / Math.max(1, x.w + x.l + x.tie);
     return Object.values(rec).sort((a, b) => pct(a) - pct(b) || a.pd - b.pd || (a.t < b.t ? -1 : 1));
   }
+  // First-round picks traded away for 2027 (as of June 2026, from Wikipedia and Sports Illustrated). Green Bay's pick went to Dallas, Indianapolis's to the Jets,
+  // the Rams' to Cleveland, and Dallas's own pick to the Jets, who get the better of Dallas's and Green Bay's picks (Dallas keeps the later one).
+  function owners(ord) {
+    const o = {}; for (const r of ord.slice(0, 32)) o[r.t] = r.t;
+    o.IND = "NYJ"; o.LA = "CLE";
+    const g = ord.findIndex((r) => r.t === "GB"), d = ord.findIndex((r) => r.t === "DAL");
+    if (g >= 0 && d >= 0) { o.DAL = g < d ? "DAL" : "NYJ"; o.GB = g < d ? "NYJ" : "DAL"; }
+    for (const k of Object.keys(Board.owners || {})) if (k in o) o[k] = Board.owners[k];
+    return o;
+  }
+  function browseRows() {
+    const G = GROUPS.find((x) => x[0] === V.bg), want = (p) => (!G || !G[2] || G[2].includes(String(p.pos).toUpperCase())) && (!V.bs || p.team === V.bs);
+    let r = POOL.filter((p) => want(p) && !onBoard(p.id));
+    r.sort(V.bsort === "az" ? (a, b) => (a.name < b.name ? -1 : 1) : (a, b) => b.sc - a.sc || (a.name < b.name ? -1 : 1));
+    return r;
+  }
+  function renderBrowse() {
+    const schools = [...new Set(POOL.map((p) => p.team))].sort();
+    const opt = (cur, list) => list.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("");
+    let h = `<details class="dr-det" data-brw ${V.browse ? "open" : ""}><summary>Browse prospects by position or school</summary>`;
+    if (!POOL.length) return h + `<p class="notes">Browsing needs the prospect list (CFBD_API_KEY).</p></details>`;
+    const r = browseRows(), shown = r.slice(0, V.bshow);
+    h += `<div class="svedit"><select id="dr-bg" aria-label="Position">${opt(V.bg, GROUPS.map((g) => [g[0], g[1]]))}</select><select id="dr-bs" aria-label="School"><option value="">All schools</option>${opt(V.bs, schools.map((x) => [x, x]))}</select><select id="dr-bsort" aria-label="Sort">${opt(V.bsort, [["prod", "Most productive"], ["az", "A to Z"]])}</select></div>`;
+    h += shown.length ? shown.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span class="dr-hn"><strong>${esc(p.name)}</strong> ${posPill(p.pos)} ${tag(p.team)}${p.cls ? ` <span class="sub" style="margin:0">${CLS[p.cls]}</span>` : ""}</span><span class="sub" style="margin:0">${esc(p.stat) || "+ Add"}</span></button>`).join("") : `<p class="notes">Nobody matches. Try another position or school.</p>`;
+    if (r.length > shown.length) h += `<div class="chips" style="margin-top:6px"><button type="button" class="chip" data-dr="more">Show more (${r.length - shown.length} left)</button></div>`;
+    return h + `<p class="notes">"Most productive" sorts by this season's main stat: passing yards for QBs, rushing yards for RBs, receiving yards for WR and TE, sacks for linemen and edge players, tackles for linebackers and defensive backs. It is not a grade. Offensive linemen have no stats, so sort them A to Z. Players already on your board are hidden.</p></details>`;
+  }
+  const IMGSIZES = { "10": [10, 1], "25": [25, 2], "32": [32, 2] };
+  function renderShare() {
+    let h = `<details class="dr-det" data-shr ${V.share ? "open" : ""}><summary>Share your board as an image</summary>`;
+    if (!Board.items.length) return h + `<p class="notes">Add players to your board first.</p></details>`;
+    h += `<div class="svedit"><input class="proj-in" id="dr-st" type="text" value="${esc(V.stitle)}" maxlength="40" aria-label="Image title" style="width:170px"><select id="dr-ss" aria-label="How many players">${Object.keys(IMGSIZES).map((k) => `<option value="${k}" ${V.ssize === k ? "selected" : ""}>Top ${k}</option>`).join("")}</select><button type="button" class="chip primary" data-dr="img">Make image</button></div>`;
+    if (V.simg) h += `<img class="dr-img" src="${V.simg}" alt="Your big board as an image"><div class="chips" style="margin-top:6px"><button type="button" class="chip primary" data-dr="shareimg">Share</button><button type="button" class="chip" data-dr="dlimg">Save image</button></div>`;
+    return h + `</details>`;
+  }
+  const rr = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+  const clip = (c, t, w) => { t = String(t); if (c.measureText(t).width <= w) return t; while (t.length > 1 && c.measureText(t + "…").width > w) t = t.slice(0, -1); return t + "…"; };
+  function drawBoard() {
+    const [n, cols] = IMGSIZES[V.ssize] || IMGSIZES["10"], list = Board.items.slice(0, n), W = cols === 1 ? 1080 : 1600, rows = Math.ceil(list.length / cols), rowH = cols === 1 ? 104 : 78, head = 190, foot = 90, H = head + rows * rowH + foot + 20;
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const c = cv.getContext("2d");
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0f1b33"); g.addColorStop(1, "#070d1a"); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = "#e0b23c"; c.fillRect(0, 0, W, 10);
+    const F = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    c.textBaseline = "alphabetic"; c.fillStyle = "#e0b23c"; c.font = `700 26px ${F}`; c.fillText("NFL DRAFT BIG BOARD", 60, 78);
+    c.fillStyle = "#fff"; c.font = `800 64px ${F}`; c.fillText(clip(c, V.stitle || "My Big Board", W - 120), 60, 150);
+    const colW = (W - 120 - (cols - 1) * 40) / cols;
+    list.forEach((it, i) => {
+      const col = cols === 1 ? 0 : Math.floor(i / rows), row = cols === 1 ? i : i % rows, x = 60 + col * (colW + 40), y = head + row * rowH, h = rowH - 12, mid = y + h / 2;
+      c.fillStyle = "rgba(255,255,255,0.07)"; rr(c, x, y, colW, h, 14); c.fill();
+      c.fillStyle = i < 3 ? "#e0b23c" : "#9fb0cc"; c.font = `800 ${cols === 1 ? 44 : 34}px ${F}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(i + 1), x + (cols === 1 ? 44 : 38), mid + 2); c.textAlign = "left";
+      const pg = posGroup(it.pos), pc = POSCOL[pg] || "#6b7280", pt = String(it.pos || "?").toUpperCase(), fs = cols === 1 ? 26 : 21, nx = x + (cols === 1 ? 90 : 76);
+      c.font = `800 ${fs}px ${F}`; const pw = c.measureText(pt).width + 26, ph = fs + 14;
+      const sc = it.team ? colCol(it.team) : "#555", ab = it.team ? String((COL && COL.teams[it.team] && COL.teams[it.team].a) || it.team).slice(0, 6) : "";
+      c.font = `800 ${fs}px ${F}`; const sw = ab ? c.measureText(ab).width + 26 : 0;
+      const tx = x + colW - 18 - pw - (sw ? sw + 10 : 0);
+      c.fillStyle = "#fff"; c.font = `700 ${cols === 1 ? 38 : 28}px ${F}`; c.fillText(clip(c, it.name, tx - nx - 16), nx, mid + 2);
+      let px = tx; c.fillStyle = pc; rr(c, px, mid - ph / 2, pw, ph, ph / 2); c.fill(); c.fillStyle = inkOn(pc); c.font = `800 ${fs}px ${F}`; c.textAlign = "center"; c.fillText(pt, px + pw / 2, mid + 2);
+      if (sw) { px += pw + 10; c.fillStyle = sc; rr(c, px, mid - ph / 2, sw, ph, ph / 2); c.fill(); c.fillStyle = inkOn(sc); c.fillText(ab, px + sw / 2, mid + 2); }
+      c.textAlign = "left";
+    });
+    c.fillStyle = "#e0b23c"; c.font = `800 28px ${F}`; c.textBaseline = "alphabetic"; c.fillText("Razor's Edge", 60, H - 40);
+    c.fillStyle = "#9fb0cc"; c.font = `500 24px ${F}`; c.textAlign = "right"; c.fillText(new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }), W - 60, H - 40);
+    return cv;
+  }
+  function imgBlob(cb) { drawBoard().toBlob(cb, "image/png"); }
   function renderBoard() {
     const sel = (cur, id, opts) => `<select id="${id}" aria-label="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     let h = `<div class="dr-add"><input id="dr-q" type="text" placeholder="${POOL.length ? "Search a player or school to add" : "Prospect search is off (needs CFBD_API_KEY). Use paste or add by hand."}" autocomplete="off" ${POOL.length ? "" : "disabled"} value="${esc(V.q)}" aria-label="Search prospects"><div id="dr-res" class="dr-res"></div></div>` +
       `<details class="dr-det"><summary>Paste a list (from ESPN, a site, or notes)</summary><textarea id="dr-paste" rows="5" placeholder="One player per line, any of these work:&#10;Arch Manning&#10;Arch Manning, QB, Texas&#10;1. Jeremiah Smith - WR - Ohio State"></textarea><div class="chips" style="margin-top:6px"><button type="button" class="chip primary" data-dr="paste">Add these to my board</button></div></details>` +
       `<details class="dr-det"><summary>Add by hand</summary><div class="svedit"><input class="proj-in" id="dr-hn" type="text" placeholder="Name" style="width:150px"><input class="proj-in" id="dr-hp" type="text" placeholder="Pos" style="width:60px"><input class="proj-in" id="dr-ht" type="text" placeholder="School" style="width:130px"><button type="button" class="chip primary" data-dr="hand">Add</button></div></details>` +
-      (V.note ? `<p class="notes">${esc(V.note)}</p>` : "");
+      renderBrowse() + renderShare() + (V.note ? `<p class="notes">${esc(V.note)}</p>` : "");
     h += `<div class="dr-bar"><h2 style="margin:0">My big board</h2><span class="sub" style="margin:0">${Board.items.length} ${Board.items.length === 1 ? "player" : "players"}</span><span style="margin-left:auto;display:flex;gap:6px">${sel(V.grp, "dr-grp", GROUPS.map((g) => [g[0], g[1]]))}<button type="button" class="chip" data-dr="edit" aria-pressed="${V.edit}">${V.edit ? "✓ Done" : "✎ Edit"}</button></span></div>`;
     const rows = Board.items.map((it, i) => ({ it, n: i + 1 })).filter((x) => posIn(x.it, V.grp));
     if (!Board.items.length) h += `<p class="notes">Your board is empty. Search for a player above, or paste a list. Then press Edit to set ranks, tiers and notes.</p>`;
@@ -3243,16 +3309,20 @@ const Sync = (() => {
     return h;
   }
   function renderMock() {
-    const ord = order(), by = new Map(Board.items.map((x, i) => [x.id, { x, n: i + 1 }]));
+    const ord = order().slice(0, 32), own = owners(ord), by = new Map(Board.items.map((x, i) => [x.id, { x, n: i + 1 }]));
     const picks = Board.mock; for (const k of Object.keys(picks)) if (!by.has(picks[k])) delete picks[k];
     const used = new Set(Object.values(picks));
-    let h = `<div class="chips" style="margin:0 0 10px"><button type="button" class="chip primary" data-dr="auto">Fill the rest from my board</button><button type="button" class="chip" data-dr="clear">Clear picks</button></div>`;
+    let h = `<div class="chips" style="margin:0 0 10px"><button type="button" class="chip primary" data-dr="auto">Fill the rest from my board</button><button type="button" class="chip" data-dr="clear">Clear picks</button><button type="button" class="chip" data-dr="trades" aria-pressed="${V.trades}">${V.trades ? "✓ Done" : "Edit pick owners"}</button>${V.trades ? `<button type="button" class="chip" data-dr="resettr">Reset trades</button>` : ""}</div>`;
+    const swapped = ord.filter((r) => own[r.t] !== r.t).map((r) => `${own[r.t]} has ${r.t}'s pick`);
+    if (swapped.length) h += `<p class="notes">Traded picks: ${esc(swapped.join(", "))}.</p>`;
+    const nofirst = ord.filter((r) => !Object.values(own).includes(r.t)).map((r) => r.t);
+    if (nofirst.length) h += `<p class="notes">No first-round pick: ${esc(nofirst.join(", "))}.</p>`;
     if (!Board.items.length) h += `<p class="notes">Build your big board first. The mock draft picks from it.</p>`;
     h += ord.slice(0, 32).map((r, i) => {
       const cur = picks[i], opts = Board.items.map((x, j) => ({ x, n: j + 1 })).filter(({ x }) => x.id === cur || !used.has(x.id)).slice(0, 60);
-      return `<div class="dr-pick"><span class="dr-pn">${i + 1}</span>${teamPill(r.t)}<span class="sub" style="margin:0">${r.w}-${r.l}${r.tie ? "-" + r.tie : ""}</span><select data-dr-slot="${i}" aria-label="Pick ${i + 1}"><option value="">Pick a player</option>${opts.map(({ x, n }) => `<option value="${esc(x.id)}" ${x.id === cur ? "selected" : ""}>${n}. ${esc(x.name)} (${esc(x.pos || "?")}${x.team ? ", " + esc(x.team) : ""})</option>`).join("")}</select></div>${cur && by.get(cur) ? `<div class="dr-got">${posPill(by.get(cur).x.pos)} ${tag(by.get(cur).x.team)} <strong>${esc(by.get(cur).x.name)}</strong></div>` : ""}`;
+      return `<div class="dr-pick"><span class="dr-pn">${i + 1}</span>${teamPill(own[r.t])}<span class="sub" style="margin:0">${own[r.t] !== r.t ? "via " + esc(r.t) + " · " : ""}${r.w}-${r.l}${r.tie ? "-" + r.tie : ""}</span>${V.trades ? `<select data-dr-own="${esc(r.t)}" aria-label="Owner of ${esc(r.t)}'s pick" style="flex:0 0 84px">${ord.map((x) => `<option value="${esc(x.t)}" ${own[r.t] === x.t ? "selected" : ""}>${esc(x.t)}</option>`).join("")}</select>` : ""}<select data-dr-slot="${i}" aria-label="Pick ${i + 1}"><option value="">Pick a player</option>${opts.map(({ x, n }) => `<option value="${esc(x.id)}" ${x.id === cur ? "selected" : ""}>${n}. ${esc(x.name)} (${esc(x.pos || "?")}${x.team ? ", " + esc(x.team) : ""})</option>`).join("")}</select></div>${cur && by.get(cur) ? `<div class="dr-got">${posPill(by.get(cur).x.pos)} ${tag(by.get(cur).x.team)} <strong>${esc(by.get(cur).x.name)}</strong></div>` : ""}`;
     }).join("");
-    h += `<p class="notes">Round 1 only. The order is each team's record this season, worst first. Playoff results, tiebreakers and trades aren't included, so treat it as a starting point.</p>`;
+    h += `<p class="notes">Round 1 only. The order is each team's record this season, worst first. Playoff results and tiebreakers aren't included. Traded picks are as of June 2026 (Wikipedia, Sports Illustrated); trades since then aren't in, so use Edit pick owners to fix any. Treat it as a starting point.</p>`;
     return h;
   }
   function render() {
@@ -3271,6 +3341,12 @@ const Sync = (() => {
   root.addEventListener("change", (e) => {
     const t = e.target, d = t.dataset;
     if (t.id === "dr-grp") { V.grp = t.value; render(); }
+    else if (t.id === "dr-bg") { V.bg = t.value; V.bshow = 30; V.browse = true; render(); }
+    else if (t.id === "dr-bs") { V.bs = t.value; V.bshow = 30; V.browse = true; render(); }
+    else if (t.id === "dr-bsort") { V.bsort = t.value; V.bshow = 30; V.browse = true; render(); }
+    else if (t.id === "dr-ss") { V.ssize = t.value; V.simg = ""; V.share = true; render(); }
+    else if (t.id === "dr-st") { V.stitle = t.value; V.simg = ""; }
+    else if (d.drOwn) { const o = owners(order().slice(0, 32)); if (!Board.owners) Board.owners = {}; Board.owners[d.drOwn] = t.value; Board.save(); render(); }
     else if (d.drRank) { const n = parseInt(t.value, 10); if (Number.isFinite(n)) moveTo(d.drRank, n); render(); }
     else if (d.drTier !== undefined) { const x = Board.items.find((y) => y.id === d.drTier); if (x) { x.tier = t.value; Board.save(); render(); } }
     else if (d.drNote !== undefined) { const x = Board.items.find((y) => y.id === d.drNote); if (x) { x.note = t.value.trim(); Board.save(); } }
@@ -3285,9 +3361,16 @@ const Sync = (() => {
     else if (d.dr === "paste") { const r = parseList($("dr-paste").value); const n = addPlayers(r.out); V.note = r.out.length ? `Added ${n} of ${r.out.length} (${r.hit} found in the prospect list, ${r.hand} added by hand${n < r.out.length ? ", " + (r.out.length - n) + " were already on your board" : ""}).` : "Nothing to add."; render(); }
     else if (d.dr === "hand") { const nm = $("dr-hn").value.trim(); if (nm) { addPlayers([{ name: nm, pos: $("dr-hp").value.trim().toUpperCase(), team: $("dr-ht").value.trim() }]); V.note = `Added ${nm}.`; } render(); }
     else if (d.dr === "edit") { V.edit = !V.edit; render(); }
+    else if (d.dr === "more") { V.bshow += 30; V.browse = true; render(); }
+    else if (d.dr === "trades") { V.trades = !V.trades; render(); }
+    else if (d.dr === "resettr") { Board.owners = {}; Board.save(); render(); }
+    else if (d.dr === "img") { V.stitle = ($("dr-st") && $("dr-st").value) || V.stitle; V.share = true; imgBlob((b) => { const fr = new FileReader(); fr.onload = () => { V.simg = fr.result; render(); }; fr.readAsDataURL(b); }); }
+    else if (d.dr === "dlimg") { const a = document.createElement("a"); a.href = V.simg; a.download = "big-board.png"; document.body.appendChild(a); a.click(); a.remove(); }
+    else if (d.dr === "shareimg") { imgBlob(async (b) => { const f = new File([b], "big-board.png", { type: "image/png" }); try { if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], title: V.stitle }); else { V.note = "Sharing isn't available in this browser. Use Save image instead."; render(); } } catch (e) { /* cancelled */ } }); }
     else if (d.dr === "auto") { const used = new Set(Object.values(Board.mock)); const free = Board.items.filter((x) => !used.has(x.id)); for (let i = 0; i < 32 && free.length; i++) if (!Board.mock[i]) Board.mock[i] = free.shift().id; Board.save(); render(); }
     else if (d.dr === "clear") { Board.mock = {}; Board.save(); render(); }
   });
+  root.addEventListener("toggle", (e) => { const t = e.target; if (t.dataset && t.dataset.brw !== undefined) V.browse = t.open; if (t.dataset && t.dataset.shr !== undefined) V.share = t.open; }, true);
   $("tab-draft").addEventListener("click", render);
   Board.on(() => { if (RE.homeRender && !$("view-home").hidden) RE.homeRender(); });
   render();

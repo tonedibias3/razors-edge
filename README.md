@@ -53,3 +53,7 @@ pip install -r requirements.txt
 python pipeline/run_all.py
 python tests/test_odds.py
 ```
+
+
+### Draft extras
+- Browse prospects by position or school (sorted by this season's main stat), share the big board as a PNG (Top 10/25/32), and a mock draft that follows traded 2027 first-round picks (editable with "Edit pick owners").

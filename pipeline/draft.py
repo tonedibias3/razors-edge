@@ -12,6 +12,10 @@ from college import ApiError, get, pick, num
 CACHE = os.path.join(college.CACHE, "draft_pool.json")
 FRESH_SECONDS = 20 * 3600
 MIN_CLASS = 3  # class year 3 = junior, 4 = senior, 5 = fifth year
+VERSION = 2    # bump when the pool's shape changes so an older cached copy is not reused
+P4 = {"SEC", "Big Ten", "Big 12", "ACC"}   # linemen have no stats, so they are added by roster for these conferences (and Notre Dame)
+OL = {"OL", "OT", "OG", "C", "IOL"}
+GROUP = {"QB": "QB", "RB": "RB", "FB": "RB", "APB": "RB", "WR": "WR", "TE": "TE", "DL": "DL", "DT": "DL", "NT": "DL", "DE": "DL", "EDGE": "DL", "LB": "LB", "ILB": "LB", "OLB": "LB", "DB": "DB", "CB": "DB", "S": "DB", "FS": "DB", "SS": "DB"}
 
 # (stat category, the stat used to rank within it, how many to keep)
 CATS = [("passing", "YDS", 120), ("rushing", "YDS", 200), ("receiving", "YDS", 320), ("defensive", "TOT", 300), ("defensive", "SACKS", 150), ("defensive", "TFL", 100), ("interceptions", "INT", 60)]
@@ -52,6 +56,19 @@ def statline(s):
     return " | ".join(parts)
 
 
+def production(pos, s):
+    """One number to sort a position by, using this season's main stat: passing yards for QBs, rushing yards for RBs, receiving yards
+    for WR/TE, sacks for linemen and edge players (tackles for loss break ties), tackles for linebackers and defensive backs. Not a grade."""
+    g = GROUP.get(str(pos).upper())
+    d = lambda c, k: s.get(c, {}).get(k) or 0
+    if g == "QB": return d("passing", "YDS")
+    if g == "RB": return d("rushing", "YDS")
+    if g in ("WR", "TE"): return d("receiving", "YDS")
+    if g == "DL": return d("defensive", "SACKS") + d("defensive", "TFL") / 100
+    if g in ("LB", "DB"): return d("defensive", "TOT")
+    return 0
+
+
 def build(season, fetch=get):
     roster = {}
     for p in fetch("/roster", {"year": season}):
@@ -81,18 +98,21 @@ def build(season, fetch=get):
         conf = {t["school"]: t.get("conference") or "" for t in fetch("/teams/fbs", {"year": season}) if t.get("school")}
     except Exception:
         pass
+    for pid, p in roster.items():   # linemen: no stats to rank them by, so take them by roster from the big conferences
+        if pid not in keep and str(p["pos"]).upper() in OL and (conf.get(p["team"]) in P4 or p["team"] == "Notre Dame"):
+            keep.add(pid)
     pool = []
     for pid in keep:
         p = roster[pid]
-        pool.append([pid, p["name"], p["pos"], p["team"], conf.get(p["team"], ""), p["cls"], int(p["ht"]) if p["ht"] else None, int(p["wt"]) if p["wt"] else None, statline(stats[pid])])
+        pool.append([pid, p["name"], p["pos"], p["team"], conf.get(p["team"], ""), p["cls"], int(p["ht"]) if p["ht"] else None, int(p["wt"]) if p["wt"] else None, statline(stats.get(pid, {})), round(production(p["pos"], stats.get(pid, {})), 2)])
     pool.sort(key=lambda r: (r[1].lower(), r[3]))
-    return {"ok": True, "season": season, "built": int(time.time()), "pool": pool}
+    return {"ok": True, "v": VERSION, "season": season, "built": int(time.time()), "pool": pool}
 
 
 def load_cached(season):
     try:
         c = json.load(open(CACHE))
-        if c.get("ok") and c.get("season") == season and time.time() - c.get("built", 0) < FRESH_SECONDS and c.get("pool"):
+        if c.get("ok") and c.get("v") == VERSION and c.get("season") == season and time.time() - c.get("built", 0) < FRESH_SECONDS and c.get("pool"):
             return c
     except Exception:
         pass
