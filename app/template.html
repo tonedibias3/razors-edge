@@ -2366,6 +2366,11 @@ const Board = (() => {
   // Players you never play: kept in this browser (and in the Saved backup), matched by name and position so they stay out every week
   const nvKey = (p) => dkNorm(p.name) + "|" + p.pos;
   const isNever = (p) => Board.never.some((x) => x.k === nvKey(p));
+  function toggleNever(p) {
+    if (isNever(p)) { Board.never = Board.never.filter((x) => x.k !== nvKey(p)); if (!OUT.has(p.status)) S.excl.delete(p.id); }
+    else { Board.never.push({ k: nvKey(p), name: p.name, pos: p.pos, team: p.team }); S.excl.add(p.id); rm(p.id); }
+    Board.save();
+  }
   function loadText(text, fromSaved) {
     const res = parseDK(text);
     if (res.error) { el.note.textContent = res.error; return; }
@@ -2530,7 +2535,7 @@ const Board = (() => {
     else if (sb) S.sort = sb.dataset.sort;
     else if (ad) { const p = BYID.get(ad.dataset.add); if (p && !canAdd(p)) { S.lineup.push(p.id); S.excl.delete(p.id); S.msg = ""; } }
     else if (rmb) rm(rmb.dataset.rm);
-    else if (nv) { const p = BYID.get(nv.dataset.never); if (p) { if (isNever(p)) { Board.never = Board.never.filter((x) => x.k !== nvKey(p)); if (!OUT.has(p.status)) S.excl.delete(p.id); } else { Board.never.push({ k: nvKey(p), name: p.name, pos: p.pos, team: p.team }); S.excl.add(p.id); rm(p.id); } Board.save(); } }
+    else if (nv) { const p = BYID.get(nv.dataset.never); if (p) toggleNever(p); }
     else if (ex) { const id = ex.dataset.excl; if (S.excl.has(id)) S.excl.delete(id); else { S.excl.add(id); rm(id); } }
     else if (rs) delete S.over[rs.dataset.reset];
     else return;
@@ -2585,7 +2590,7 @@ const Board = (() => {
     h += chartSVG(logs, p);
     h += `<p class="legend"><span><i style="background:var(--accent)"></i>Beat the projection</span><span><i style="background:var(--axis)"></i>Fell short</span><span><i style="background:var(--accent);opacity:.25"></i>Projected floor to ceiling</span><span>Dashed line is the projection</span></p>`;
     h += `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Week</th><th>Opponent</th><th class="num">DK pts</th><th>What he did</th></tr></thead><tbody>` + logs.slice().reverse().map((g) => `<tr><td>${g[0] === DATA.season ? "" : "’" + String(g[0]).slice(2) + " "}W${g[1]}</td><td>${g[3] ? "vs" : "at"} ${teamPill(g[2])}</td><td class="num"><strong${hasP && g[4] >= p.proj ? ' class="res ok" style="font-size:inherit"' : ""}>${f1(g[4])}</strong></td><td>${esc(g[5])}</td></tr>`).join("") + `</tbody></table></div>`;
-    if (S.dk) h += `<div class="chips" style="margin-top:12px">${mine ? `<button type="button" class="chip" data-drm="${esc(p.id)}">Remove from lineup</button>` : `<button type="button" class="chip" data-dadd="${esc(p.id)}" ${why ? `disabled title="${esc(why)}"` : ""}>+ Add to lineup</button>`}</div>`;
+    if (S.dk) h += `<div class="chips" style="margin-top:12px">${mine ? `<button type="button" class="chip" data-drm="${esc(p.id)}">Remove from lineup</button>` : `<button type="button" class="chip" data-dadd="${esc(p.id)}" ${why ? `disabled title="${esc(why)}"` : ""}>+ Add to lineup</button>`} <button type="button" class="chip" data-dexcl="${esc(p.id)}" aria-pressed="${S.excl.has(p.id)}" title="Leave him out of generated lineups for this slate">${S.excl.has(p.id) ? "Include" : "Exclude"}</button> <button type="button" class="chip" data-dnever="${esc(p.id)}" aria-pressed="${isNever(p)}" title="Keep him out every week, not just this slate">${isNever(p) ? "Never ✓" : "Never"}</button></div>`;
     return h;
   }
   function openDetail(id) { S.detail = id; renderDetail(); }
@@ -2600,9 +2605,11 @@ const Board = (() => {
   $("pm-close").addEventListener("click", closeDetail);
   $("p-modal").addEventListener("click", (e) => {
     if (e.target === $("p-modal")) return closeDetail();
-    const a = e.target.closest("button[data-dadd]"), r = e.target.closest("button[data-drm]");
+    const a = e.target.closest("button[data-dadd]"), r = e.target.closest("button[data-drm]"), dx = e.target.closest("button[data-dexcl]"), dn = e.target.closest("button[data-dnever]");
     if (a) { const p = BYID.get(a.dataset.dadd); if (p && !canAdd(p)) { S.lineup.push(p.id); S.excl.delete(p.id); S.msg = ""; } render(); }
     else if (r) { rm(r.dataset.drm); render(); }
+    else if (dx) { const id = dx.dataset.dexcl; if (S.excl.has(id)) S.excl.delete(id); else { S.excl.add(id); rm(id); } render(); }
+    else if (dn) { const p = BYID.get(dn.dataset.dnever); if (p) { toggleNever(p); render(); } }
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.detail) closeDetail(); });
   try {
