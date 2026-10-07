@@ -298,6 +298,8 @@ input.proj-in[type="number"] { height: 30px; width: 72px; border-radius: 6px; te
 tr.tot td { font-weight: 700; border-top: 1px solid var(--axis); }
 tr.off td { color: var(--ink2); }
 .warn { margin: 8px 0 0; font-size: 14px; }
+.rulesbox { margin-top: 12px; }
+.rulesbox > summary { cursor: pointer; font-weight: 600; font-size: 14px; padding: 8px 0; }
 .rules { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 14px; align-items: end; }
 .rules .check { grid-column: 1 / -1; }
 tr.empty-slot td { color: var(--ink2); }
@@ -838,6 +840,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
       <div class="panel-head"><h2>Your lineup</h2></div>
       <div class="stats" id="p-sum"></div>
       <div id="p-body"></div>
+      <details class="rulesbox" id="p-rulesbox"><summary>Lineup rules: stacks, bring-backs, limits</summary>
       <div class="rules" id="p-rules">
         <div class="field"><label class="lbl" for="r-game">Most players from one game</label>
           <select id="r-game"><option value="0">No limit</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>
@@ -856,7 +859,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
         <div class="field"><label class="lbl" for="r-avoid">Stay away from this game</label>
           <select id="r-avoid"><option value="">None</option></select></div>
         <label class="check"><input type="checkbox" id="r-flex"> Keep a second TE out of FLEX</label>
-      </div>
+      </div></details>
       <div class="chips" style="margin-top:12px">
         <button type="button" class="chip" id="p-fill">Fill open slots</button>
         <button type="button" class="chip primary" id="p-best">Generate lineup</button>
@@ -2703,7 +2706,8 @@ const Sync = (() => {
     const { slots } = place(S.lineup), ps = slots.filter((x) => x.p);
     if (!ps.length) return;
     const sal = ps.reduce((a, x) => a + x.p.salary, 0), pr = ps.reduce((a, x) => a + (x.p.proj || 0), 0);
-    const nm = $("p-name").value.trim() || `Week ${F.week} lineup`;
+    const base = $("p-name").value.trim() || `Week ${F.week} lineup`, taken = new Set(Saved.data.lineups.map((l) => l.name));
+    let nm = base; for (let i = 2; taken.has(nm); i++) nm = base + "_" + i;
     Saved.add("lineups", { name: nm, week: F.week, salary: sal, proj: Math.round(pr * 10) / 10, full: ps.length === 9, players: ps.map((x) => ({ slot: x.slot, name: x.p.name, pos: x.p.pos, team: x.p.team, salary: x.p.salary, proj: x.p.proj === null ? null : Math.round(x.p.proj * 10) / 10 })) });
     $("p-name").value = "";
     S.msg = `Saved “${nm}”. Open Saved at the top to bring it back any time.`;
