@@ -841,6 +841,14 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
           <input id="r-dst" type="number" inputmode="numeric" step="100" min="2000" placeholder="No limit"></div>
         <div class="field"><label class="lbl" for="r-from">Build from</label>
           <select id="r-from"><option value="all">All players</option><option value="stars">My starred players</option></select></div>
+        <div class="field"><label class="lbl" for="r-stack">Stack: WR/TE with the QB</label>
+          <select id="r-stack"><option value="0">None</option><option value="1">1 teammate</option><option value="2">2 teammates</option></select></div>
+        <div class="field"><label class="lbl" for="r-bring">Bring-back: from the other team</label>
+          <select id="r-bring"><option value="0">None</option><option value="1">1 player</option><option value="2">2 players</option></select></div>
+        <div class="field"><label class="lbl" for="r-steam">Stack this team's QB</label>
+          <select id="r-steam"><option value="">Any team</option></select></div>
+        <div class="field"><label class="lbl" for="r-avoid">Stay away from this game</label>
+          <select id="r-avoid"><option value="">None</option></select></div>
         <label class="check"><input type="checkbox" id="r-flex"> Keep a second TE out of FLEX</label>
       </div>
       <div class="chips" style="margin-top:12px">
@@ -2464,7 +2472,7 @@ const Sync = (() => {
   const sflag = (s) => (s ? `<span class="flag ${s === "Q" ? "flag-q" : "flag-out"}">${esc(s)}</span>` : "");
   const f1 = (v) => (v === null || v === undefined ? "–" : (Math.round(v * 10) / 10).toFixed(1));
   const CAP = 50000;
-  const S = { dk: null, pos: "ALL", sort: "proj", obj: "proj", hide: true, q: "", game: "", lineup: [], detail: null, locks: new Set(), stars: new Set(), poolOnly: false, from: "all", excl: new Set(), over: {}, rules: { maxGame: 0, maxTeam: 0, maxDst: 0, noTeFlex: false } };
+  const S = { dk: null, pos: "ALL", sort: "proj", obj: "proj", hide: true, q: "", game: "", lineup: [], detail: null, locks: new Set(), stars: new Set(), poolOnly: false, from: "all", excl: new Set(), over: {}, rules: { maxGame: 0, maxTeam: 0, maxDst: 0, noTeFlex: false, stack: 0, bring: 0, stackTeam: "", avoid: "" } };
   const el = { file: $("p-file"), paste: $("p-paste"), pos: $("p-pos"), obj: $("p-obj"), q: $("p-q"), game: $("p-game"), hide: $("p-hide"), note: $("p-note"), body: $("p-body"), sum: $("p-sum"), msg: $("p-msg"), head: $("p-head"), table: $("p-table") };
   const OUT = new Set(["OUT", "IR", "D"]);
   const SLOTS = ["QB", "RB", "RB", "WR", "WR", "WR", "TE", "FLEX", "DST"];
@@ -2522,7 +2530,9 @@ const Sync = (() => {
     return "";
   }
   function rulesOpts(extra) {
-    return { cap: CAP, obj: S.obj, excl: S.excl, maxGame: S.rules.maxGame, maxTeam: S.rules.maxTeam, maxDst: S.rules.maxDst, noTeFlex: S.rules.noTeFlex, ...extra };
+    const ex = new Set(S.excl);
+    if (S.rules.avoid) for (const p of P) if (p.game === S.rules.avoid && !S.locks.has(p.id) && !S.lineup.includes(p.id)) ex.add(p.id);
+    return { cap: CAP, obj: S.obj, excl: ex, stack: S.rules.stack, bring: S.rules.bring, stackTeam: S.rules.stackTeam, maxGame: S.rules.maxGame, maxTeam: S.rules.maxTeam, maxDst: S.rules.maxDst, noTeFlex: S.rules.noTeFlex, ...extra };
   }
   function fill(keep) {
     S.msg = "";
@@ -2567,6 +2577,10 @@ const Sync = (() => {
     const games = [...new Set(res.rows.map((r) => r.game).filter(Boolean))].sort();
     el.game.innerHTML = '<option value="">All games</option>' + games.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
     S.game = "";
+    const tms = [...new Set(res.rows.filter((r) => r.pos === "QB").map((r) => r.team))].sort();
+    $("r-steam").innerHTML = '<option value="">Any team</option>' + tms.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+    $("r-avoid").innerHTML = '<option value="">None</option>' + games.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
+    S.rules.stackTeam = ""; S.rules.avoid = "";
     S.msg = "Your lineup is empty. Press Generate lineup for the best one, or add players yourself from the list below.";
     if (fromSaved) el.note.textContent = fromSaved + " " + el.note.textContent;
     else { try { localStorage.setItem("re-dk", JSON.stringify({ tag: String(DKDEFAULT.length), text, at: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }) })); } catch (e) { /* storage not available */ } }
@@ -2592,6 +2606,12 @@ const Sync = (() => {
     if (left < 0) warn.push(`Over the cap by ${money(-left)}.`);
     for (const [g, n] of gm) if (R.maxGame && n > R.maxGame) warn.push(`${n} players from ${g} (your limit is ${R.maxGame}).`);
     for (const [t, n] of tm) if (R.maxTeam && n > R.maxTeam) warn.push(`${n} players from ${t} (your limit is ${R.maxTeam}).`);
+    const q0 = ps.find((p) => p.pos === "QB");
+    if (q0 && ps.length === 9) {
+      const m = ps.filter((p) => (p.pos === "WR" || p.pos === "TE") && p.team === q0.team).length, b = ps.filter((p) => p.pos !== "QB" && p.pos !== "DST" && q0.game && p.game === q0.game && p.team !== q0.team).length;
+      if (R.stack && m < R.stack) warn.push(`Stack: ${m} WR/TE with ${q0.name} (you asked for ${R.stack}).`);
+      if (R.bring && b < R.bring) warn.push(`Bring-back: ${b} from the other team (you asked for ${R.bring}).`);
+    }
     const d = ps.find((p) => p.pos === "DST");
     if (d && R.maxDst && d.salary > R.maxDst) warn.push(`Defense costs ${money(d.salary)}, over your ${money(R.maxDst)} limit.`);
     const risky = ps.filter((p) => p.status && p.status !== "").map((p) => `${p.name} (${p.status})`);
@@ -2662,6 +2682,10 @@ const Sync = (() => {
   $("r-game").addEventListener("change", (e) => { S.rules.maxGame = +e.target.value; render(); });
   $("r-team").addEventListener("change", (e) => { S.rules.maxTeam = +e.target.value; render(); });
   $("r-dst").addEventListener("input", (e) => { const v = parseFloat(e.target.value); S.rules.maxDst = Number.isFinite(v) && v > 0 ? v : 0; render(); });
+  $("r-stack").addEventListener("change", (e) => { S.rules.stack = +e.target.value; render(); });
+  $("r-bring").addEventListener("change", (e) => { S.rules.bring = +e.target.value; render(); });
+  $("r-steam").addEventListener("change", (e) => { S.rules.stackTeam = e.target.value; render(); });
+  $("r-avoid").addEventListener("change", (e) => { S.rules.avoid = e.target.value; render(); });
   $("r-flex").addEventListener("change", (e) => { S.rules.noTeFlex = e.target.checked; render(); });
   $("p-fill").addEventListener("click", () => { fill(true); render(); });
   $("p-best").addEventListener("click", () => { fill(false); render(); });

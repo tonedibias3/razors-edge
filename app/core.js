@@ -327,13 +327,15 @@ function solveBase(pool, o) {
   return { slots, salary: ps.reduce((a, p) => a + p.salary, 0), proj: sum("proj"), floor: sum("floor"), v: ps.reduce((a, p) => a + p[obj], 0), games: new Set(ps.map((p) => p.game || p.team)).size };
 }
 
-// With rules: o also takes maxGame, maxTeam (0 = no limit), maxDst (salary cap on the defense).
+// With rules: o also takes stack (WR/TE partners with the QB), bring (players from the other team in his game), stackTeam, maxGame, maxTeam (0 = no limit), maxDst (salary cap on the defense).
 // Exact: when a solution has too many players from one game/team, split into "drop one of them" cases and search best-first.
 function optimizeLineup(pool, o) {
   o = o || {};
   const maxG = o.maxGame || 99, maxT = o.maxTeam || 99;
   const cands = pool.filter((p) => !(p.pos === "DST" && o.maxDst && p.salary > o.maxDst));
   const locks0 = new Set(o.locks || []), excl0 = new Set(o.excl || []);
+  const needS = o.stack || 0, needB = o.bring || 0, obj = o.obj || "proj";
+  if (o.stackTeam) for (const p of cands) if (p.pos === "QB" && p.team !== o.stackTeam && !locks0.has(p.id)) excl0.add(p.id);
   const mk = (excl, locks) => solveBase(cands, { cap: o.cap, obj: o.obj, noTeFlex: o.noTeFlex, excl, locks });
   const violation = (sol) => {
     const by = (key, lim, skipDst) => {
@@ -347,9 +349,36 @@ function optimizeLineup(pool, o) {
   const root = mk(excl0, locks0);
   if (!root || root.error) return root;
   const heap = [{ sol: root, excl: excl0, locks: locks0 }];
-  for (let n = 0; heap.length && n < 400; n++) {
+  for (let n = 0; heap.length && n < 1500; n++) {
     heap.sort((a, b) => b.sol.v - a.sol.v);
     const node = heap.shift();
+    // Stack rules, judged against the QB in this lineup: first settle the QB, then add partners one at a time.
+    const qb = (needS || needB) && node.sol.slots[0].p;
+    if (qb) {
+      const inSol = node.sol.slots.map((s) => s.p);
+      const mates = inSol.filter((p) => (p.pos === "WR" || p.pos === "TE") && p.team === qb.team).length;
+      const backs = inSol.filter((p) => p.pos !== "QB" && p.pos !== "DST" && qb.game && p.game === qb.game && p.team !== qb.team).length;
+      const need = !node.locks.has(qb.id) || mates < needS || backs < needB;
+      if (need) {
+        if (!node.locks.has(qb.id)) {
+          const ex = new Set(node.excl); ex.add(qb.id);
+          const s1 = mk(ex, node.locks); if (s1 && !s1.error) heap.push({ sol: s1, excl: ex, locks: node.locks });
+          const lk = new Set(node.locks); lk.add(qb.id);
+          heap.push({ sol: node.sol, excl: node.excl, locks: lk });
+          continue;
+        }
+        const want = mates < needS ? (p) => (p.pos === "WR" || p.pos === "TE") && p.team === qb.team : (p) => p.pos !== "QB" && p.pos !== "DST" && qb.game && p.game === qb.game && p.team !== qb.team;
+        const opts = cands.filter((p) => want(p) && !node.locks.has(p.id) && !node.excl.has(p) && !node.excl.has(p.id) && p[obj] !== null && p[obj] !== undefined).sort((a, b) => b[obj] - a[obj]);
+        const ex = new Set(node.excl);
+        for (const c of opts) {
+          const lk = new Set(node.locks); lk.add(c.id);
+          const sj = mk(ex, lk);
+          if (sj && !sj.error) heap.push({ sol: sj, excl: new Set(ex), locks: lk });
+          ex.add(c.id);
+        }
+        continue;
+      }
+    }
     const g = violation(node.sol);
     if (!g) return node.sol;
     const keep = [];
