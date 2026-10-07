@@ -792,6 +792,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
       <label class="check"><input type="checkbox" id="p-hide" checked> Only players with a projection</label>
     </section>
     <p class="notes" id="p-note"></p>
+    <details class="dr-det" id="p-never" hidden></details>
 
     <section class="panel" id="p-lineup" aria-label="Your lineup">
       <div class="panel-head"><h2>Your lineup</h2></div>
@@ -971,16 +972,16 @@ const Saved = (() => {
 
 // ---------- Your draft big board and mock draft picks: kept in this browser, and included in the Saved backup ----------
 const Board = (() => {
-  const KEY = "re-board-v1", b = { items: [], mock: {} };
-  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; } } catch (e) { /* storage not available */ }
+  const KEY = "re-board-v1", b = { items: [], mock: {}, never: [] };
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; if (Array.isArray(r.never)) b.never = r.never; } } catch (e) { /* storage not available */ }
   const subs = [];
   b.on = (f) => subs.push(f);
-  b.save = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock })); } catch (e) { /* storage not available */ } subs.forEach((f) => f()); };
+  b.save = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock, never: b.never })); } catch (e) { /* storage not available */ } subs.forEach((f) => f()); };
   const ex = Saved.exportJSON, im = Saved.importJSON;
-  Saved.exportJSON = () => { const o = JSON.parse(ex()); o.board = b.items; o.mock = b.mock; return JSON.stringify(o, null, 1); };
+  Saved.exportJSON = () => { const o = JSON.parse(ex()); o.board = b.items; o.mock = b.mock; o.never = b.never; return JSON.stringify(o, null, 1); };
   Saved.importJSON = (text) => {
     const res = im(text); if (res.error) return res;
-    try { const r = JSON.parse(text); let n = 0; for (const x of Array.isArray(r.board) ? r.board : []) if (x && x.id && !b.items.some((y) => y.id === x.id)) { b.items.push(x); n++; } if (n) { if (r.mock && !Object.keys(b.mock).length) b.mock = r.mock; b.save(); res.added += n; } } catch (e) { /* ignore */ }
+    try { const r = JSON.parse(text); let n = 0; for (const x of Array.isArray(r.board) ? r.board : []) if (x && x.id && !b.items.some((y) => y.id === x.id)) { b.items.push(x); n++; } let m = 0; for (const x of Array.isArray(r.never) ? r.never : []) if (x && x.k && !b.never.some((y) => y.k === x.k)) { b.never.push(x); m++; } if (n) { if (r.mock && !Object.keys(b.mock).length) b.mock = r.mock; } if (n || m) { b.save(); res.added += n + m; } } catch (e) { /* ignore */ }
     return res;
   };
   return b;
@@ -2361,11 +2362,14 @@ const Board = (() => {
     else S.lineup = r.slots.map((s) => s.p.id);
   }
 
+  // Players you never play: kept in this browser (and in the Saved backup), matched by name and position so they stay out every week
+  const nvKey = (p) => dkNorm(p.name) + "|" + p.pos;
+  const isNever = (p) => Board.never.some((x) => x.k === nvKey(p));
   function loadText(text, fromSaved) {
     const res = parseDK(text);
     if (res.error) { el.note.textContent = res.error; return; }
     S.dk = res.rows; S.over = {}; S.lineup = []; S.locks = new Set(); S.stars = new Set(); S.poolOnly = false;
-    S.excl = new Set(res.rows.filter((r) => OUT.has(r.status)).map((r) => r.id));
+    S.excl = new Set(res.rows.filter((r) => OUT.has(r.status) || isNever(r)).map((r) => r.id));
     refreshPool();
     const un = P.filter((x) => !x.matched && x.salary >= 4000 && !OUT.has(x.status)).sort((a, b) => b.salary - a.salary);
     el.note.textContent = `Loaded ${res.rows.length} players from the file. ${P.filter((x) => x.matched).length} have a projection. Players DraftKings lists as OUT, IR or doubtful have no projection (the stats can't see injuries). Type a number in his Proj box if you want to use him.` +
@@ -2418,6 +2422,7 @@ const Board = (() => {
     $("p-lineup").hidden = false;
     for (const id of ["p-fill", "p-best", "p-clear"]) $(id).disabled = !has;
     $("p-save").disabled = !S.lineup.length;
+    { const nl = $("p-never"); nl.hidden = !Board.never.length; nl.innerHTML = Board.never.length ? `<summary>Never-play list (${Board.never.length})</summary><p class="notes" style="margin:6px 0">These players are left out of every slate you load. Press Remove to bring one back.</p><div class="chips">${Board.never.map((x) => `<button type="button" class="chip" data-nvrm="${esc(x.k)}" title="Remove from the never-play list">${esc(x.name)} (${esc(x.pos)}) ✕</button>`).join("")}</div>` : ""; }
     $("p-unlock").hidden = !has || !S.locks.size; $("p-unlock").textContent = `Unlock all (${S.locks.size})`;
     el.body.innerHTML = lineupHTML();
     el.msg.textContent = has ? (S.msg || "") : "Load your DraftKings salary file above (or paste it) to turn on the lineup builder. It needs the salaries to stay under the $50,000 cap.";
@@ -2438,7 +2443,7 @@ const Board = (() => {
           (has ? `<td class="num">${money(p.salary)}</td>` : "") +
           `<td class="num"><input class="proj-in" type="number" step="0.1" min="0" inputmode="decimal" data-id="${esc(p.id)}" value="${p.proj === null ? "" : f1(p.proj)}" placeholder="${p.unavail ? esc(p.status) : "–"}" aria-label="Projection for ${esc(p.name)}">${p.edited ? ` <button type="button" class="linkbtn" data-reset="${esc(p.id)}">reset</button>` : ""}</td>` +
           `<td class="num">${p.floor === null ? "–" : f1(p.floor) + " – " + f1(p.ceil)}</td><td class="num">${oprkCell(p.oprk)}<span class="sub">${p.oprk ? (p.oprk.pts > 0 ? "+" : "") + p.oprk.pts.toFixed(1) + " pts" : ""}</span></td><td class="num">${f1(p.ewma)}<span class="sub">${p.adj === null || p.edited ? "" : "(" + (p.adj > 0 ? "+" : "") + f1(p.adj) + ")"}</span></td>` +
-          (has ? `<td class="num">${p.value === null ? "–" : p.value.toFixed(2)}</td><td>${mine ? `<button type="button" class="mini" data-rm="${esc(p.id)}">Remove</button>` : `<button type="button" class="mini" data-add="${esc(p.id)}" ${why ? `disabled title="${esc(why)}"` : ""}>+ Add</button>`} <button type="button" class="mini" data-excl="${esc(p.id)}" aria-pressed="${out}">${out ? "Include" : "Exclude"}</button></td>` : "") + "</tr>";
+          (has ? `<td class="num">${p.value === null ? "–" : p.value.toFixed(2)}</td><td>${mine ? `<button type="button" class="mini" data-rm="${esc(p.id)}">Remove</button>` : `<button type="button" class="mini" data-add="${esc(p.id)}" ${why ? `disabled title="${esc(why)}"` : ""}>+ Add</button>`} <button type="button" class="mini" data-excl="${esc(p.id)}" aria-pressed="${out}">${out ? "Include" : "Exclude"}</button> <button type="button" class="mini" data-never="${esc(p.id)}" aria-pressed="${isNever(p)}" title="Keep him out every week, not just this slate">${isNever(p) ? "Never ✓" : "Never"}</button></td>` : "") + "</tr>";
       }).join("") + "</tbody>";
   }
 
@@ -2488,6 +2493,7 @@ const Board = (() => {
     S.msg = `Loaded “${l.name}”.` + (miss.length ? ` Not on the current salary file, so left out: ${miss.join(", ")}.` : "") + (sal !== l.salary && !miss.length ? ` Salaries have changed: it now costs ${money(sal)}.` : "");
     render();
   };
+  $("p-never").addEventListener("click", (e) => { const b = e.target.closest("button[data-nvrm]"); if (!b) return; const k = b.dataset.nvrm; Board.never = Board.never.filter((x) => x.k !== k); for (const p of P) if (nvKey(p) === k && !OUT.has(p.status)) S.excl.delete(p.id); Board.save(); render(); });
   $("p-unlock").addEventListener("click", () => { S.locks = new Set(); S.msg = ""; render(); });
   const rm = (id) => { S.lineup = S.lineup.filter((x) => x !== id); S.locks.delete(id); S.msg = ""; };
   // Lock a player: he stays through "Start over" and "Clear". Locking someone not in the lineup puts him in (swapping out an unlocked player if no spot is open).
@@ -2518,11 +2524,12 @@ const Board = (() => {
     if (dt) { openDetail(dt.dataset.detail); return; }
     const lk = e.target.closest("button[data-lock]");
     if (lk) { toggleLock(lk.dataset.lock); render(); return; }
-    const st = e.target.closest("button[data-star]"), sb = e.target.closest("button[data-sort]"), ad = e.target.closest("button[data-add]"), rmb = e.target.closest("button[data-rm]"), ex = e.target.closest("button[data-excl]"), rs = e.target.closest("button[data-reset]");
+    const st = e.target.closest("button[data-star]"), sb = e.target.closest("button[data-sort]"), ad = e.target.closest("button[data-add]"), rmb = e.target.closest("button[data-rm]"), ex = e.target.closest("button[data-excl]"), nv = e.target.closest("button[data-never]"), rs = e.target.closest("button[data-reset]");
     if (st) { const id = st.dataset.star; if (S.stars.has(id)) S.stars.delete(id); else S.stars.add(id); }
     else if (sb) S.sort = sb.dataset.sort;
     else if (ad) { const p = BYID.get(ad.dataset.add); if (p && !canAdd(p)) { S.lineup.push(p.id); S.excl.delete(p.id); S.msg = ""; } }
     else if (rmb) rm(rmb.dataset.rm);
+    else if (nv) { const p = BYID.get(nv.dataset.never); if (p) { if (isNever(p)) { Board.never = Board.never.filter((x) => x.k !== nvKey(p)); if (!OUT.has(p.status)) S.excl.delete(p.id); } else { Board.never.push({ k: nvKey(p), name: p.name, pos: p.pos, team: p.team }); S.excl.add(p.id); rm(p.id); } Board.save(); } }
     else if (ex) { const id = ex.dataset.excl; if (S.excl.has(id)) S.excl.delete(id); else { S.excl.add(id); rm(id); } }
     else if (rs) delete S.over[rs.dataset.reset];
     else return;
