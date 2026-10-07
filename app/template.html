@@ -107,6 +107,8 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .gamerow { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; margin: 8px 0 0; -webkit-overflow-scrolling: touch; }
 .gamerow:empty { display: none; }
 .gpill { flex: 0 0 auto; min-width: 74px; padding: 6px 10px; border: 1px solid var(--axis); background: var(--surface); border-radius: 10px; font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; color: inherit; }
+.gpill { padding: 0 0 5px; overflow: hidden; }
+.gpill > span { align-self: stretch; padding: 3px 8px; }
 .gpill small { font-weight: 500; opacity: .7; font-size: 11px; margin-top: 2px; white-space: nowrap; }
 .gpill[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
 .chip { height: 42px; padding: 0 14px; border: 1px solid var(--axis); background: var(--surface); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
@@ -2633,7 +2635,7 @@ const Sync = (() => {
       (S.dk ? `<button type="button" class="chip" data-pool="1" aria-pressed="${S.poolOnly}">★ My pool (${S.stars.size})</button>${S.stars.size ? ' <button type="button" class="linkbtn" data-clearstars="1">clear stars</button>' : ""}` : "");
     const gmap = new Map();
     if (S.dk) for (const r of S.dk) if (r.game && !gmap.has(r.game)) gmap.set(r.game, r);
-    $("p-games").innerHTML = [...gmap.values()].sort((a, b) => (a.ko || "~").localeCompare(b.ko || "~") || a.game.localeCompare(b.game)).map((r) => { const [a, h] = r.game.split("@"); return `<button type="button" class="gpill" data-game="${esc(r.game)}" aria-pressed="${S.game === r.game}"><span>${esc(a)}</span><span>@ ${esc(h)}</span>${r.kol ? `<small>${esc(r.kol)}</small>` : ""}</button>`; }).join("");
+    $("p-games").innerHTML = [...gmap.values()].sort((a, b) => (a.ko || "~").localeCompare(b.ko || "~") || a.game.localeCompare(b.game)).map((r) => { const [a, h] = r.game.split("@"); const tc = (t) => TEAM_COLORS[t] || ["#555", "#fff"]; return `<button type="button" class="gpill" data-game="${esc(r.game)}" aria-pressed="${S.game === r.game}"><span style="background:${tc(a)[0]};color:${tc(a)[1]}">${esc(a)}</span><span style="background:${tc(h)[0]};color:${tc(h)[1]}">@ ${esc(h)}</span>${r.kol ? `<small>${esc(r.kol)}</small>` : ""}</button>`; }).join("");
     const has = !!S.dk;
     if (S.detail) renderDetail();
     $("p-lineup").hidden = false;
