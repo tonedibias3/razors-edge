@@ -295,6 +295,7 @@ tr.off td { color: var(--ink2); }
 .rules .check { grid-column: 1 / -1; }
 tr.empty-slot td { color: var(--ink2); }
 tr.mine td { background: var(--hover); }
+tr.broke td, tr.broke td:last-child { background: color-mix(in srgb, var(--bad) 13%, var(--surface)); }
 .mini:disabled { opacity: 0.4; cursor: not-allowed; }
 .bad { color: var(--under); font-weight: 600; }
 .star { border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; padding: 0 8px 0 0; color: var(--ink2); vertical-align: -2px; }
@@ -2622,13 +2623,17 @@ const Sync = (() => {
     const key = { proj: (p) => p.proj, value: (p) => p.value, salary: (p) => p.salary, floor: (p) => p.floor, opp: (p) => p.oprkN }[S.sort];
     rows.sort((a, b) => (key(b) === null ? -1 : key(b)) - (key(a) === null ? -1 : key(a)) || b.salary - a.salary);
     const total = rows.length, shown = rows.slice(0, 100);
-    el.head.textContent = `Week ${F.week} projections · ${total} players` + (total > 100 ? " (showing the top 100; use the filters or search to see others)" : "") + ".";
+    // a player you can't fit under the cap with the spots you have left: shaded red (he'd leave too little for the other open spots)
+    const inLine = S.lineup.map((id) => P.find((x) => x.id === id)).filter(Boolean), openN = 9 - inLine.length, leftCap = CAP - inLine.reduce((a, x) => a + x.salary, 0), minSal = Math.min(...P.filter((x) => x.salary > 0).map((x) => x.salary));
+    const broke = (p) => has && inLine.length > 0 && openN > 0 && !S.lineup.includes(p.id) && p.salary + (openN - 1) * minSal > leftCap;
+    const nBroke = shown.filter(broke).length;
+    el.head.textContent = `Week ${F.week} projections · ${total} players` + (nBroke ? ` · ${nBroke} red: can't fit under the cap with your open spots` : "") + (total > 100 ? " (showing the top 100; use the filters or search to see others)" : "") + ".";
     const sb = (k, label) => `<button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${S.sort === k}">${label}</button>`;
     el.table.innerHTML = `<thead><tr><th>Player</th>${has ? `<th class="num">${sb("salary", "Salary")}</th>` : ""}<th class="num">${sb("proj", "Proj")}</th><th class="num">${sb("floor", "Floor")} – Ceil</th><th class="num">${sb("opp", "Opp rank")}</th><th class="num">Recent avg</th>${has ? `<th class="num">${sb("value", "Per $1k")}</th><th></th>` : ""}</tr></thead><tbody>` +
       shown.map((p) => {
         const vs = p.game ? (p.game.split("@")[1] === p.team ? "vs" : "at") : "vs";
         const out = S.excl.has(p.id), mine = S.lineup.includes(p.id), why = has && !mine ? canAdd(p) : "";
-        return `<tr class="${out ? "off" : ""}${mine ? " mine" : ""}${S.locks.has(p.id) ? " locked" : ""}"><td>${has ? lockBtn(p) + `<button type="button" class="star" data-star="${esc(p.id)}" aria-pressed="${S.stars.has(p.id)}" aria-label="${S.stars.has(p.id) ? "Remove star from" : "Star"} ${esc(p.name)}">${S.stars.has(p.id) ? "★" : "☆"}</button>` : ""}<button type="button" class="linkbtn" data-detail="${esc(p.id)}"><strong>${esc(p.name)}</strong></button>${sflag(p.status)}${p.basic && p.matched ? `<span class="flag" title="Short history or low usage">basic</span>` : ""}<span class="sub">${p.pos} · ${teamPill(p.team)} ${p.opp ? vs + " " + teamPill(p.opp) : ""}</span></td>` +
+        return `<tr class="${out ? "off" : ""}${broke(p) ? " broke" : ""}${mine ? " mine" : ""}${S.locks.has(p.id) ? " locked" : ""}"><td>${has ? lockBtn(p) + `<button type="button" class="star" data-star="${esc(p.id)}" aria-pressed="${S.stars.has(p.id)}" aria-label="${S.stars.has(p.id) ? "Remove star from" : "Star"} ${esc(p.name)}">${S.stars.has(p.id) ? "★" : "☆"}</button>` : ""}<button type="button" class="linkbtn" data-detail="${esc(p.id)}"><strong>${esc(p.name)}</strong></button>${sflag(p.status)}${p.basic && p.matched ? `<span class="flag" title="Short history or low usage">basic</span>` : ""}<span class="sub">${p.pos} · ${teamPill(p.team)} ${p.opp ? vs + " " + teamPill(p.opp) : ""}</span></td>` +
           (has ? `<td class="num">${money(p.salary)}</td>` : "") +
           `<td class="num"><input class="proj-in" type="number" step="0.1" min="0" inputmode="decimal" data-id="${esc(p.id)}" value="${p.proj === null ? "" : f1(p.proj)}" placeholder="${p.unavail ? esc(p.status) : "–"}" aria-label="Projection for ${esc(p.name)}">${p.edited ? ` <button type="button" class="linkbtn" data-reset="${esc(p.id)}">reset</button>` : ""}</td>` +
           `<td class="num">${p.floor === null ? "–" : f1(p.floor) + " – " + f1(p.ceil)}</td><td class="num">${oprkCell(p.oprk)}<span class="sub">${p.oprk ? (p.oprk.pts > 0 ? "+" : "") + p.oprk.pts.toFixed(1) + " pts" : ""}</span></td><td class="num">${f1(p.ewma)}<span class="sub">${p.adj === null || p.edited ? "" : "(" + (p.adj > 0 ? "+" : "") + f1(p.adj) + ")"}</span></td>` +
