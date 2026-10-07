@@ -389,6 +389,10 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .slip .chip, .slip .mini { font-size: 17px; font-weight: 700; }
 .slip .res.ok { color: var(--pos); } .slip .res.no { color: var(--neg); }
 .slip input[type="text"], .slip input[type="number"], .slip .proj-in { font-size: 19px; background: rgba(255,255,255,.55); }
+#z-table .sub { white-space: normal; }
+#z-table th:last-child, #z-table td:last-child { position: sticky; right: 0; background: var(--surface); padding-left: 10px; padding-right: 14px; box-shadow: -8px 0 8px -8px rgba(0,0,0,.35); }
+#z-table tr.mine td:last-child { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+@media (max-width: 900px) { #z-table th.gm, #z-table td.gm { display: none; } }
 .slip .tablewrap, .slip table { background: transparent; }
 .drawer.slip { border-left: 3px double #1e1d1a; }
 .slip .stat, .slip .tile { background: #fcf8e8; }
