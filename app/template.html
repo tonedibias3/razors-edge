@@ -431,7 +431,7 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .dr-ctl select { width: 104px; flex: 0 0 auto; }
 .dr-det summary { font-size: 15px; letter-spacing: 0; text-transform: none; border-left: 0; padding-left: 0; cursor: pointer; font-weight: 600; }
 .dr-det > * { margin-top: 6px; }
-.dr-note { flex: 1 1 90px; min-width: 0; width: 90px; }
+.dr-note { flex: 1 0 100%; order: 10; min-width: 0; }
 .dr-pick { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
 .dr-pick select { flex: 1; min-width: 0; }
 .dr-pn { width: 26px; text-align: right; font-weight: 700; }
@@ -444,6 +444,21 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .botbar button:hover { background: var(--hover); }
 .hm-grp { margin: 14px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .hm-barset { display: flex; flex-direction: column; gap: 8px; }
+
+.dr-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 8px; }
+.dr-bar select { width: auto; max-width: 150px; }
+.dr-card { display: grid; grid-template-columns: 46px 1fr; align-items: center; gap: 0 8px; padding: 10px 12px 10px 6px; margin: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.dr-card.top { border-color: var(--accent); }
+.dr-rk { font-family: var(--font-display, inherit); font-size: 26px; font-weight: 800; text-align: center; color: var(--ink2); line-height: 1; }
+.dr-card.top .dr-rk { color: var(--accent); }
+.dr-nm { font-size: 17px; font-weight: 700; line-height: 1.2; }
+.dr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; }
+.dr-st { margin: 0; }
+.dr-nt { margin-top: 4px; font-size: 13px; font-style: italic; color: var(--ink2); }
+.dr-card .dr-ctl { grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.dr-hn { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.dr-got { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 6px 34px; font-size: 14px; }
+.tm.pp { min-width: 30px; }
 /* Paper look */
 html[data-look="paper"][data-theme] { color-scheme: light; --page: #ece3cb; --surface: #fbf6e6; --ink: #25231e; --ink2: #5b564a; --muted: #8b8572; --grid: #ddd2b4; --axis: #bfb393; --border: rgba(70,55,25,.24); --hover: rgba(70,55,25,.08); --shadow: 0 2px 0 rgba(70,55,25,.2);
   --over: #2f62a3; --under: #c0592b; --push: #8b8572; --accent: #2f6b3d; --accent-ink: #fbf6e6; --accent-soft: rgba(47,107,61,.13); --star: #a87a00; --warn: #a15c00; --bad: #b3261e;
@@ -3169,13 +3184,17 @@ const Sync = (() => {
   const POOL = DR ? DR.pool.map((r) => ({ id: "p" + r[0], name: r[1], pos: r[2], team: r[3], conf: r[4], cls: r[5], ht: r[6], wt: r[7], stat: r[8], k: norm(r[1] + " " + r[3] + " " + r[2]) })) : [];
   const BYNAME = new Map(); for (const p of POOL) { const k = norm(p.name); (BYNAME.get(k) || BYNAME.set(k, []).get(k)).push(p); }
   const GROUPS = [["all", "All positions", null], ["QB", "QB", ["QB"]], ["RB", "RB", ["RB", "FB", "APB"]], ["WR", "WR", ["WR"]], ["TE", "TE", ["TE"]], ["OL", "OL", ["OL", "OT", "OG", "C", "IOL"]], ["DL", "DL", ["DL", "DT", "NT"]], ["EDGE", "EDGE", ["DE", "EDGE"]], ["LB", "LB", ["LB", "ILB", "OLB"]], ["DB", "DB", ["DB", "CB", "S", "FS", "SS"]]];
-  const V = { mode: "board", grp: "all", q: "", note: "" };
+  const V = { mode: "board", grp: "all", q: "", note: "", edit: false };
   const CLS = { 3: "Jr", 4: "Sr", 5: "5th" };
   const uid = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const item = (p) => ({ id: p.id || uid(), name: p.name, pos: p.pos || "", team: p.team || "", cls: p.cls || null, stat: p.stat || "", tier: "", note: "", custom: !p.id });
   const onBoard = (id) => Board.items.some((x) => x.id === id);
   const posIn = (it, g) => { const G = GROUPS.find((x) => x[0] === g); return !G || !G[2] || G[2].includes(String(it.pos).toUpperCase()); };
-  const tag = (t) => (COL && COL.teams[t] ? tp(t, "cfb") : "");
+  const POSCOL = { QB: "#d1495b", RB: "#2a9d8f", WR: "#3b82f6", TE: "#d98e04", OL: "#8b5cf6", DL: "#ea580c", EDGE: "#be123c", LB: "#16a34a", DB: "#0891b2" };
+  const posGroup = (pos) => { const u = String(pos || "").toUpperCase(); const g = GROUPS.find((x) => x[2] && x[2].includes(u)); return g ? g[0] : null; };
+  const posPill = (pos) => { const bg = POSCOL[posGroup(pos)] || "#6b7280"; return `<span class="tm pp" style="background:${bg};color:${inkOn(bg)}">${esc(String(pos || "?").toUpperCase())}</span>`; };
+  const tag = (t) => (COL && COL.teams[t] ? tp(t, "cfb") : t ? `<span class="tm" style="background:#555;color:#fff;min-width:0">${esc(t)}</span>` : "");
+  const meta = (it) => `${posPill(it.pos)} ${tag(it.team)}${it.cls || it.stat ? ` <span class="sub dr-st">${[it.cls ? CLS[it.cls] : "", it.stat].filter(Boolean).map(esc).join(" · ")}</span>` : ""}`;
   const sub = (it) => [it.team, it.cls ? CLS[it.cls] : "", it.stat].filter(Boolean).map(esc).join(" · ");
 
   function moveTo(id, n) { const i = Board.items.findIndex((x) => x.id === id); if (i < 0) return; const [x] = Board.items.splice(i, 1); Board.items.splice(Math.max(0, Math.min(Board.items.length, n - 1)), 0, x); Board.save(); }
@@ -3205,23 +3224,22 @@ const Sync = (() => {
   function renderBoard() {
     const sel = (cur, id, opts) => `<select id="${id}" aria-label="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     let h = `<div class="dr-add"><input id="dr-q" type="text" placeholder="${POOL.length ? "Search a player or school to add" : "Prospect search is off (needs CFBD_API_KEY). Use paste or add by hand."}" autocomplete="off" ${POOL.length ? "" : "disabled"} value="${esc(V.q)}" aria-label="Search prospects"><div id="dr-res" class="dr-res"></div></div>` +
-      `<details class="dr-det"><summary>Paste a list (from ESPN, a site, or notes)</summary><textarea id="dr-paste" rows="5" placeholder="One player per line. Numbers in front are fine.&#10;1. Arch Manning, QB, Texas&#10;2. Jeremiah Smith"></textarea><div class="chips" style="margin-top:6px"><button type="button" class="chip primary" data-dr="paste">Add these to my board</button></div></details>` +
+      `<details class="dr-det"><summary>Paste a list (from ESPN, a site, or notes)</summary><textarea id="dr-paste" rows="5" placeholder="One player per line, any of these work:&#10;Arch Manning&#10;Arch Manning, QB, Texas&#10;1. Jeremiah Smith - WR - Ohio State"></textarea><div class="chips" style="margin-top:6px"><button type="button" class="chip primary" data-dr="paste">Add these to my board</button></div></details>` +
       `<details class="dr-det"><summary>Add by hand</summary><div class="svedit"><input class="proj-in" id="dr-hn" type="text" placeholder="Name" style="width:150px"><input class="proj-in" id="dr-hp" type="text" placeholder="Pos" style="width:60px"><input class="proj-in" id="dr-ht" type="text" placeholder="School" style="width:130px"><button type="button" class="chip primary" data-dr="hand">Add</button></div></details>` +
       (V.note ? `<p class="notes">${esc(V.note)}</p>` : "");
-    h += `<div class="chips" style="margin:10px 0">${sel(V.grp, "dr-grp", GROUPS.map((g) => [g[0], g[1]]))}<span class="sub" style="margin:0 0 0 auto">${Board.items.length} on your board</span></div>`;
+    h += `<div class="dr-bar"><h2 style="margin:0">My big board</h2><span class="sub" style="margin:0">${Board.items.length} ${Board.items.length === 1 ? "player" : "players"}</span><span style="margin-left:auto;display:flex;gap:6px">${sel(V.grp, "dr-grp", GROUPS.map((g) => [g[0], g[1]]))}<button type="button" class="chip" data-dr="edit" aria-pressed="${V.edit}">${V.edit ? "✓ Done" : "✎ Edit"}</button></span></div>`;
     const rows = Board.items.map((it, i) => ({ it, n: i + 1 })).filter((x) => posIn(x.it, V.grp));
-    if (!Board.items.length) h += `<p class="notes">Your board is empty. Search for a player above, or paste a list. Then set each player's number to put him where you want, or use the arrows. Tiers and notes are yours too.</p>`;
+    if (!Board.items.length) h += `<p class="notes">Your board is empty. Search for a player above, or paste a list. Then press Edit to set ranks, tiers and notes.</p>`;
     let lastTier = null;
     for (const { it, n } of rows) {
       if (it.tier && it.tier !== lastTier) h += `<div class="dr-tier">Tier ${esc(it.tier)}</div>`;
       lastTier = it.tier || lastTier;
-      h += `<div class="dr-row"><div class="dr-top"><input class="proj-in dr-rank" type="number" min="1" max="${Board.items.length}" inputmode="numeric" value="${n}" data-dr-rank="${esc(it.id)}" aria-label="Rank of ${esc(it.name)}"><strong class="dr-name">${esc(it.name)}</strong><span class="flag">${esc(it.pos || "?")}</span>${tag(it.team)}</div>` +
-        `<div class="sub dr-sub">${sub(it) || "added by hand"}</div>` +
-        `<div class="dr-ctl"><select data-dr-tier="${esc(it.id)}" aria-label="Tier"><option value="">No tier</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}" ${String(it.tier) === String(t) ? "selected" : ""}>Tier ${t}</option>`).join("")}</select>` +
+      h += `<div class="dr-card${n <= 3 ? " top" : ""}"><div class="dr-rk">${n}</div><div class="dr-main"><div class="dr-nm">${esc(it.name)}</div><div class="dr-meta">${meta(it)}</div>${it.note && !V.edit ? `<div class="dr-nt">“${esc(it.note)}”</div>` : ""}</div>` +
+        (V.edit ? `<div class="dr-ctl"><input class="proj-in dr-rank" type="number" min="1" max="${Board.items.length}" inputmode="numeric" value="${n}" data-dr-rank="${esc(it.id)}" aria-label="Rank of ${esc(it.name)}"><select data-dr-tier="${esc(it.id)}" aria-label="Tier"><option value="">No tier</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}" ${String(it.tier) === String(t) ? "selected" : ""}>Tier ${t}</option>`).join("")}</select>` +
         `<input class="proj-in dr-note" type="text" data-dr-note="${esc(it.id)}" value="${esc(it.note)}" placeholder="Note" maxlength="140" aria-label="Note for ${esc(it.name)}">` +
-        `<button type="button" class="mini" data-dr-mv="${esc(it.id)}|-1" ${n === 1 ? "disabled" : ""} aria-label="Move up">▲</button><button type="button" class="mini" data-dr-mv="${esc(it.id)}|1" ${n === Board.items.length ? "disabled" : ""} aria-label="Move down">▼</button><button type="button" class="mini" data-dr-del="${esc(it.id)}" aria-label="Remove">✕</button></div></div>`;
+        `<button type="button" class="mini" data-dr-mv="${esc(it.id)}|-1" ${n === 1 ? "disabled" : ""} aria-label="Move up">▲</button><button type="button" class="mini" data-dr-mv="${esc(it.id)}|1" ${n === Board.items.length ? "disabled" : ""} aria-label="Move down">▼</button><button type="button" class="mini" data-dr-del="${esc(it.id)}" aria-label="Remove">✕</button></div>` : "") + `</div>`;
     }
-    h += `<p class="notes">This board is yours: nothing here is a ranking from anyone else. It's saved in this browser and included in the Saved backup. Search covers juniors and seniors with the most production this season${DR ? " (" + POOL.length + " players, refreshed daily)" : ""}; anyone missing can be pasted or added by hand.</p>`;
+    h += `<p class="notes">This board is yours: nothing here is a ranking from anyone else. It's saved in this browser, syncs if you turned on Sync, and is included in the Saved backup. Search covers juniors and seniors with the most production this season${DR ? " (" + POOL.length + " players, refreshed daily)" : ""}; anyone missing can be pasted or added by hand.</p>`;
     return h;
   }
   function renderMock() {
@@ -3232,7 +3250,7 @@ const Sync = (() => {
     if (!Board.items.length) h += `<p class="notes">Build your big board first. The mock draft picks from it.</p>`;
     h += ord.slice(0, 32).map((r, i) => {
       const cur = picks[i], opts = Board.items.map((x, j) => ({ x, n: j + 1 })).filter(({ x }) => x.id === cur || !used.has(x.id)).slice(0, 60);
-      return `<div class="dr-pick"><span class="dr-pn">${i + 1}</span>${teamPill(r.t)}<span class="sub" style="margin:0">${r.w}-${r.l}${r.tie ? "-" + r.tie : ""}</span><select data-dr-slot="${i}" aria-label="Pick ${i + 1}"><option value="">Pick a player</option>${opts.map(({ x, n }) => `<option value="${esc(x.id)}" ${x.id === cur ? "selected" : ""}>${n}. ${esc(x.name)} (${esc(x.pos || "?")}${x.team ? ", " + esc(x.team) : ""})</option>`).join("")}</select></div>`;
+      return `<div class="dr-pick"><span class="dr-pn">${i + 1}</span>${teamPill(r.t)}<span class="sub" style="margin:0">${r.w}-${r.l}${r.tie ? "-" + r.tie : ""}</span><select data-dr-slot="${i}" aria-label="Pick ${i + 1}"><option value="">Pick a player</option>${opts.map(({ x, n }) => `<option value="${esc(x.id)}" ${x.id === cur ? "selected" : ""}>${n}. ${esc(x.name)} (${esc(x.pos || "?")}${x.team ? ", " + esc(x.team) : ""})</option>`).join("")}</select></div>${cur && by.get(cur) ? `<div class="dr-got">${posPill(by.get(cur).x.pos)} ${tag(by.get(cur).x.team)} <strong>${esc(by.get(cur).x.name)}</strong></div>` : ""}`;
     }).join("");
     h += `<p class="notes">Round 1 only. The order is each team's record this season, worst first. Playoff results, tiebreakers and trades aren't included, so treat it as a starting point.</p>`;
     return h;
@@ -3247,7 +3265,7 @@ const Sync = (() => {
     const toks = norm(V.q).split(" ").filter(Boolean);
     if (!toks.length) { el.innerHTML = ""; return; }
     const hits = POOL.filter((p) => !onBoard(p.id) && toks.every((t) => p.k.includes(t))).slice(0, 10);
-    el.innerHTML = hits.length ? hits.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span><strong>${esc(p.name)}</strong> <span class="flag">${esc(p.pos || "?")}</span> ${esc(p.team)}${p.cls ? " · " + CLS[p.cls] : ""}</span><span class="sub" style="margin:0">${esc(p.stat)}</span></button>`).join("") : `<p class="notes">No match. Try fewer letters, or add by hand.</p>`;
+    el.innerHTML = hits.length ? hits.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span class="dr-hn"><strong>${esc(p.name)}</strong> ${posPill(p.pos)} ${tag(p.team)}${p.cls ? ` <span class="sub" style="margin:0">${CLS[p.cls]}</span>` : ""}</span><span class="sub" style="margin:0">${esc(p.stat)}</span></button>`).join("") : `<p class="notes">No match. Try fewer letters, or add by hand.</p>`;
   }
   root.addEventListener("input", (e) => { if (e.target.id === "dr-q") { V.q = e.target.value; results(); } });
   root.addEventListener("change", (e) => {
@@ -3266,6 +3284,7 @@ const Sync = (() => {
     else if (d.drDel) { const i = Board.items.findIndex((x) => x.id === d.drDel); if (i >= 0) { Board.items.splice(i, 1); Board.save(); render(); } }
     else if (d.dr === "paste") { const r = parseList($("dr-paste").value); const n = addPlayers(r.out); V.note = r.out.length ? `Added ${n} of ${r.out.length} (${r.hit} found in the prospect list, ${r.hand} added by hand${n < r.out.length ? ", " + (r.out.length - n) + " were already on your board" : ""}).` : "Nothing to add."; render(); }
     else if (d.dr === "hand") { const nm = $("dr-hn").value.trim(); if (nm) { addPlayers([{ name: nm, pos: $("dr-hp").value.trim().toUpperCase(), team: $("dr-ht").value.trim() }]); V.note = `Added ${nm}.`; } render(); }
+    else if (d.dr === "edit") { V.edit = !V.edit; render(); }
     else if (d.dr === "auto") { const used = new Set(Object.values(Board.mock)); const free = Board.items.filter((x) => !used.has(x.id)); for (let i = 0; i < 32 && free.length; i++) if (!Board.mock[i]) Board.mock[i] = free.shift().id; Board.save(); render(); }
     else if (d.dr === "clear") { Board.mock = {}; Board.save(); render(); }
   });
