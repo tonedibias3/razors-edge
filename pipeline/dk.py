@@ -21,7 +21,7 @@ r["t"] = (r.season-2023)*30 + r.week          # time index
 r = r.sort_values(["player_id","t"]).reset_index(drop=True)
 
 # Week-5 placeholders: one empty row per player active this season, tagged with that week's opponent.
-_sch = pd.read_csv(D+"schedule.csv"); _sch = _sch[(_sch.season==SEASON)&(_sch.week==FUTURE)&(_sch.game_type=="REG")]
+_sch = pd.read_csv(D+"schedule.csv"); _sch = _sch[(_sch.season==SEASON)&(_sch.week==FUTURE)&(_sch.game_type=="REG")&_sch.result.isna()]   # games already played this week (a Thursday game) get no placeholder
 _opp = {}
 for g_ in _sch.itertuples():
     _opp[g_.home_team] = g_.away_team; _opp[g_.away_team] = g_.home_team

@@ -1751,7 +1751,8 @@ const Board = (() => {
   const sl = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + (Number.isInteger(v) ? Math.abs(v) : Math.abs(v).toFixed(1));
   const pct = (v) => (v === null || v === undefined ? "–" : Math.round(v * 100) + "%");
   const money = (v) => (v < 0 ? "−$" : "$") + Math.abs(v).toFixed(2);
-  const wkInfo = (sch, season) => { const w = [...new Set(sch.filter((r) => r[0] === season && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b); return { w, n: w.find((x) => sch.filter((r) => r[0] === season && r[1] === x).every((r) => r[5] === null)) || w[w.length - 1] }; };
+  const wkInfo = (sch, season) => { const w = [...new Set(sch.filter((r) => r[0] === season && r[6] !== null).map((r) => r[1]))].sort((a, b) => a - b), cut = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); return { w, n: w.find((x) => sch.some((r) => r[0] === season && r[1] === x && r[5] === null && r[2] >= cut)) || w[w.length - 1] }; };
+  const wkPart = (w) => SCH.some((r) => r[0] === SEASON && r[1] === w && r[5] !== null);
   let { w: weeks, n: nextWeek } = wkInfo(SCH, SEASON);
   const S = { lf: "all", df: "any", db: "any", cf: "p4t25", mode: "lines", pts: 6, stake: 25, week: nextWeek, sort: "cover", dir: 1, win: "all", ls: "time", ld: 1, legs: [], odds: {}, ov: {}, msg: "" };
   const STORE = {};
@@ -1876,7 +1877,7 @@ const Board = (() => {
   const etFmt = (x, short) => { const d = typeof x === "number" ? new Date(x * 1000) : new Date(x); return d.toLocaleString("en-US", short ? { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" } : { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); };
   const movedOf = (g) => { const o = openOf(g); return !!o && g[5] === null && (o[1] !== g[6] || o[2] !== g[7]); };
   function renderLines() {
-    $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " · next" : w < nextWeek ? " · played" : ""}</option>`).join("");
+    $("l-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? (wkPart(w) ? " · this week" : " · next") : w < nextWeek ? " · played" : ""}</option>`).join("");
     const allG0 = SCH.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null).sort((a, b) => (String(a[2]) + (a[10] || "")).localeCompare(String(b[2]) + (b[10] || "")));
     const cfOn = isC();
     let gamesSel = "";
@@ -2178,7 +2179,7 @@ const Board = (() => {
     // pick-a-leg table
     $("z-pts").innerHTML = [6, 6.5, 7].map((p) => `<button type="button" class="chip" data-pts="${p}" aria-pressed="${S.pts === p}">${p} points</button>`).join("");
     $("z-sort").innerHTML = [["cover", "Best history"], ["game", "Game order"], ["last", "Team last 10"], ["tease", "Teased spread"]].map(([k, l]) => `<button type="button" class="chip" data-sort="${k}" aria-pressed="${S.sort === k}">${l}</button>`).join("");
-    $("z-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? " (upcoming)" : w < nextWeek ? " (played)" : ""}</option>`).join("");
+    $("z-week").innerHTML = weeks.map((w) => `<option value="${w}" ${w === S.week ? "selected" : ""}>Week ${w}${w === nextWeek ? (wkPart(w) ? " (this week)" : " (upcoming)") : w < nextWeek ? " (played)" : ""}</option>`).join("");
     const n = S.legs.length, need = needFor(n || 6, S.pts);
     const rows = [];
     for (const g of SCH.filter((r) => r[0] === SEASON && r[1] === S.week && r[6] !== null)) {
