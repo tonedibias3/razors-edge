@@ -913,6 +913,9 @@ function tp(t, lg) {
   const x = COL && COL.teams[t], bg = colCol(t), ab = String((x && x.a) || t).slice(0, 5).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   return `<span class="tm" style="background:${bg};color:${inkOn(bg)}">${ab}</span>`;
 }
+// Kickoff of a schedule row (times are Eastern): a label like "Sat, Oct 10 · 12:00 PM ET", and a key that sorts earliest first
+const kickLabel = (g) => { if (!g) return ""; const d = new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); let t = ""; if (g[10]) { const [h, mi] = g[10].split(":").map(Number); t = " · " + (((h + 11) % 12) + 1) + ":" + String(mi).padStart(2, "0") + (h >= 12 ? " PM" : " AM") + " ET"; } return d + t; };
+const kickKey = (g) => (g ? g[2] + "|" + (g[10] || "99:99") : "9999");
 const ordn = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
 const TS = (() => {
   const rows = DATA.tstats || [], SEAS = DATA.season;
@@ -1981,9 +1984,10 @@ const Sync = (() => {
   const legStat = (l, pts) => (lt(l) === "spread" ? legStats(TG, l.line, pts) : totStats(isTeamTot(lt(l)) ? ttRows() : gtRows(), isOv(lt(l)), l.line, pts));
   const tb = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${tp(t)}</button>`;
   const roleTxt = (line, home, opp) => `<span class="${line > 0 ? "pos" : line < 0 ? "neg" : ""}">${line > 0 ? "Getting " + Math.abs(line) : line < 0 ? "Laying " + Math.abs(line) : "Pick’em"}</span> · ${home ? "vs" : "at"} ${esc(opp)}`;
-  const legName = (l) => (lt(l) === "spread" ? `<strong>${tb(l.team)}</strong><span class="sub">${roleTxt(l.line, l.home, l.opp)} · wk ${l.week}</span>` :
-    isTeamTot(lt(l)) ? `<strong>${tb(l.team)} ${isOv(lt(l)) ? "over" : "under"}</strong><span class="sub">team total · ${l.home ? "vs" : "at"} ${tb(l.opp)} · wk ${l.week}</span>` :
-    `<strong>${isOv(lt(l)) ? "Over" : "Under"}</strong><span class="sub">game total · ${tb(l.opp)} at ${tb(l.team)} · wk ${l.week}</span>`);
+  const wkTxt = (l) => kickLabel(gameOf(l.team, l.week)) || "wk " + l.week;
+  const legName = (l) => (lt(l) === "spread" ? `<strong>${tb(l.team)}</strong><span class="sub">${roleTxt(l.line, l.home, l.opp)} · ${wkTxt(l)}</span>` :
+    isTeamTot(lt(l)) ? `<strong>${tb(l.team)} ${isOv(lt(l)) ? "over" : "under"}</strong><span class="sub">team total · ${l.home ? "vs" : "at"} ${tb(l.opp)} · ${wkTxt(l)}</span>` :
+    `<strong>${isOv(lt(l)) ? "Over" : "Under"}</strong><span class="sub">game total · ${tb(l.opp)} at ${tb(l.team)} · ${wkTxt(l)}</span>`);
   const legRes = (l) => { if (l.res === null || l.res === undefined) return ""; const x = legWin(l, S.pts, l.res); return x > 0 ? `<span class="res ok">Covered by ${r1(x)}</span>` : x === 0 ? `<span class="res">Push</span>` : `<span class="res no">Missed by ${r1(-x)}</span>`; };
   // Your Week 5 slip as a starting point. The lines are the ones your book showed before the teaser.
   [["PHI", 7], ["MIA", 7], ["TEN", 7], ["LAC", 3.5], ["NYG", 3.5], ["LV", 3.5]].forEach(([t, l]) => { if (weeks.includes(5)) addLeg(t, 5, l); });
@@ -2378,6 +2382,7 @@ const Sync = (() => {
     // slip
     $("z-stake").value = S.stake;
     { const oo = oddsFor(Math.max(S.legs.length, 2), S.pts); if (document.activeElement !== $("z-odds")) $("z-odds").value = oo === null ? "" : oo; }
+    S.legs.sort((x, y) => kickKey(gameOf(x.team, x.week)).localeCompare(kickKey(gameOf(y.team, y.week))));   // earliest kickoff first, so you can check the slip top to bottom
     const legs = S.legs.map((l) => ({ ...l, st: legStat(l, S.pts) }));
     const probs = legs.map((l) => l.st.cover), allp = probs.reduce((a, b) => a * b, 1);
     const odds = oddsFor(Math.max(n, 2), S.pts), beAll = odds === null ? null : 1 / (1 + oddsProfit(odds));
@@ -2927,27 +2932,31 @@ const Sync = (() => {
     if (!all.length) return h + `<p class="notes">Nothing saved yet. On the Players tab, set a line, then press “☆ Save this prop” (add your odds if you like). On Top hit rates, tap the ☆ next to a player. On Lines, tap a spread, or the O or U under a total, to save a side.</p>`;
     if (!list.length && !pl.length) h += `<p class="notes">Nothing saved for week ${UP}. Switch to All weeks to see older ones.</p>`;
     const hits = new Map(list.map((x) => [x.id, hit(x)]));
-    h += list.map((x) => {
+    const propGame = (x) => D.sched.find((r) => r[0] === D.season && r[1] === x.wk && (r[3] === x.team || r[4] === x.team));
+    const pickGame = (x) => schOf(x).find((r) => r[0] === x.season && r[1] === x.week && r[3] === x.away && r[4] === x.home);
+    const cardP = (x) => {
       const r = hits.get(x.id), sel = V.sel.has(x.id);
       return `<div class="svc ${sel ? "sel" : ""}"><div class="svrow"><input type="checkbox" data-sel="${x.id}" ${sel ? "checked" : ""} aria-label="Add ${esc(x.name)} to the parlay">` +
-        `<div class="svmain"><button type="button" class="linkbtn" data-open="${x.id}"><strong>${esc(x.name)}</strong></button> <span class="sub" style="display:inline">${x.pos} · ${teamPill(x.team)}${x.wk ? " · wk " + x.wk : ""}</span>` +
+        `<div class="svmain"><button type="button" class="linkbtn" data-open="${x.id}"><strong>${esc(x.name)}</strong></button> <span class="sub" style="display:inline">${x.pos} · ${teamPill(x.team)}${x.wk ? " · " + (kickLabel(propGame(x)) || "wk " + x.wk) : ""}</span>` +
         `<div style="margin-top:2px">${esc(propText(x))}${x.odds ? ` <strong>${odds(x.odds)}</strong>` : ""}</div>` +
         `<div class="sub" style="margin:2px 0 0">${r ? `Last ${r.n10}: ${r.h10} of ${r.n10} (${pct(r.p)}) · since ${r.since}: ${r.hAll} of ${r.nAll} (${pct(r.nAll ? r.hAll / r.nAll : null)})` : "No game history for this line"}</div></div></div>` +
         `<div class="svedit">${x.stat === "any_td" ? "" : `<button type="button" class="mini" data-flip="${x.id}">${x.side === "under" ? "Under → Over" : "Over → Under"}</button>`}` +
         `<input class="proj-in" type="text" inputmode="numeric" data-podds="${x.id}" value="${x.odds ? odds(x.odds) : ""}" placeholder="Odds" aria-label="Odds for ${esc(x.name)}">` +
         `<input class="proj-in" style="flex:1;min-width:110px;width:auto" type="text" data-pnote="${x.id}" value="${esc(x.note || "")}" placeholder="Note" maxlength="80" aria-label="Note">` +
         `<button type="button" class="mini" data-del="props|${x.id}" aria-label="Delete ${esc(x.name)} prop">Delete</button></div></div>`;
-    }).join("");
-    if (pl.length) h += `<h3 style="margin:6px 0 8px;font-size:14px">Sides and totals</h3>` + pl.map((x) => {
+    };
+    const cardK = (x) => {
       const sel = V.sel.has(x.id), st = pickStatus(x);
       return `<div class="svc ${sel ? "sel" : ""}"><div class="svrow"><input type="checkbox" data-sel="${x.id}" ${sel ? "checked" : ""} aria-label="Add this pick to the parlay">` +
         `<div class="svmain"><button type="button" class="linkbtn" data-openl="${x.id}"><strong>${pickText(x)}</strong></button>${x.odds ? ` <strong>${odds(x.odds)}</strong>` : ""}` +
-        `<div class="sub" style="margin:2px 0 0">${x.lg === "cfb" ? "College · " : ""}${esc(x.away)} at ${esc(x.home)} · week ${x.week}${x.date ? " · " + when(new Date(x.date + "T12:00:00").getTime()) : ""}</div>` +
+        `<div class="sub" style="margin:2px 0 0">${x.lg === "cfb" ? "College · " : ""}${esc(x.away)} at ${esc(x.home)} · week ${x.week}${(() => { const gg = pickGame(x); return gg ? " · " + kickLabel(gg) : x.date ? " · " + when(new Date(x.date + "T12:00:00").getTime()) : ""; })()}</div>` +
         `<div style="margin-top:4px"><span class="res ${st.cls}">${esc(st.text)}</span></div></div></div>` +
         `<div class="svedit"><input class="proj-in" type="text" inputmode="numeric" data-kodds="${x.id}" value="${x.odds ? odds(x.odds) : ""}" placeholder="Odds" aria-label="Odds, optional">` +
         `<input class="proj-in" style="flex:1;min-width:110px;width:auto" type="text" data-knote="${x.id}" value="${esc(x.note || "")}" placeholder="Note" maxlength="80" aria-label="Note">` +
         `<button type="button" class="mini" data-del="picks|${x.id}">Delete</button></div></div>`;
-    }).join("");
+    };
+    // props, sides and totals in one list, earliest kickoff first, so you can check them off from the top
+    if (list.length || pl.length) h += `<p class="sub" style="margin:0 0 6px">Earliest kickoff first</p>` + [...list.map((x) => [kickKey(propGame(x)), 0, x]), ...pl.map((x) => [kickKey(pickGame(x)), 1, x])].sort((a, b) => a[0].localeCompare(b[0]) || a[1] - b[1]).map(([, k, x]) => (k ? cardK(x) : cardP(x))).join("");
     const chosen = list.concat(pl).filter((x) => V.sel.has(x.id));
     h += `<div class="chips" style="margin:2px 0 10px"><button type="button" class="chip" data-selall="1">Select all shown</button>${V.sel.size ? '<button type="button" class="chip" data-selnone="1">Clear selection</button>' : ""}` +
       `<button type="button" class="chip" data-delall="props">${V.confirm === "props" ? "Tap again to delete all" : "Delete all props and sides"}</button></div>`;
@@ -3015,10 +3024,10 @@ const Sync = (() => {
       return `<div class="svc"><input class="svname" type="text" data-name="teasers|${t.id}" value="${esc(t.name)}" maxlength="60" aria-label="Teaser name">` +
         `<div class="sub" style="margin:0">${t.lg === "cfb" ? "College · " : ""}${t.legs.length} legs · ${t.pts} pts · $${t.stake}${t.odds ? " at " + odds(t.odds) : ""} · saved ${when(t.at)}</div>` +
         `<p style="margin:6px 0 0"><span class="res ${st.cls}">${esc(st.text)}</span></p>` +
-        `<ul class="svlegs">` + t.legs.map((l, i) => {
-          const x = st.rs[i];
+        `<ul class="svlegs">` + t.legs.map((l, i) => i).sort((a, b) => kickKey(RE.legGame(t, t.legs[a])).localeCompare(kickKey(RE.legGame(t, t.legs[b]))) || a - b).map((i) => {
+          const l = t.legs[i], x = st.rs[i], gm = RE.legGame(t, l), wkl = gm ? kickLabel(gm) : "wk " + l.week;
           const ty = l.type || "spread", ov = ty === "tover" || ty === "over", ts = Math.round((ty === "spread" ? l.line + t.pts : ov ? l.line - t.pts : l.line + t.pts) * 10) / 10;
-          const lbl = ty === "spread" ? `${tp(l.team, t.lg)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · wk ${l.week}</span>` : ty === "over" || ty === "under" ? `<strong>Game ${ov ? "over" : "under"}</strong> <span class="sub" style="margin:0">${l.opp} at ${l.team} · wk ${l.week}</span>` : `${tp(l.team, t.lg)} <span class="sub" style="margin:0">${ov ? "over" : "under"} team total · wk ${l.week}</span>`;
+          const lbl = ty === "spread" ? `${tp(l.team, t.lg)} <span class="sub" style="margin:0">${l.home ? "vs" : "at"} ${l.opp} · ${wkl}</span>` : ty === "over" || ty === "under" ? `<strong>Game ${ov ? "over" : "under"}</strong> <span class="sub" style="margin:0">${l.opp} at ${l.team} · ${wkl}</span>` : `${tp(l.team, t.lg)} <span class="sub" style="margin:0">${ov ? "over" : "under"} team total · ${wkl}</span>`;
           const nums = ty === "spread" ? `<span class="${l.line > 0 ? "pos" : l.line < 0 ? "neg" : ""}">${l.line > 0 ? "+" : l.line < 0 ? "−" : ""}${Math.abs(l.line)}</span> → <strong class="${l.line + t.pts > 0 ? "pos" : l.line + t.pts < 0 ? "neg" : ""}">${l.line + t.pts > 0 ? "+" : l.line + t.pts < 0 ? "−" : ""}${Math.abs(ts)}</strong>` : `${l.line} → <strong class="pos">${ts}</strong>`;
           return `<li>${lbl} <span>${nums}</span>` +
             (x === null ? ` <span class="sub" style="margin:0">pending</span>` : x > 0 ? ` <span class="res ok">Covered by ${Math.round(x * 10) / 10}</span>` : x === 0 ? ` <span class="res">Push</span>` : ` <span class="res no">Missed by ${Math.round(-x * 10) / 10}</span>`) + `</li>`;
@@ -3153,7 +3162,7 @@ const Sync = (() => {
   const sg = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v * 10) / 10);
   const signed = (v) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v * 10) / 10);
   const cl = (v) => (v > 0 ? "pos" : v < 0 ? "neg" : "");
-  const kick = (g) => { if (!g) return ""; const d = new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); let t = ""; if (g[10]) { const [h, mi] = g[10].split(":").map(Number); t = " · " + (((h + 11) % 12) + 1) + ":" + String(mi).padStart(2, "0") + (h >= 12 ? " PM" : " AM"); } return d + t; };
+  const kick = kickLabel;
   function legText(l, pts, b) {
     if (typeof l === "string") return !l.includes("→") ? esc(l) : esc(l).replace(/([+−-]\d+(?:\.\d+)?)/g, (x) => `<span class="${x[0] === "+" ? "pos" : "neg"}">${x}</span>`);
     const t = l.type || "spread", r = (v) => Math.round(v * 10) / 10, lg = b && b.lg, g = RE.legGame ? RE.legGame(b || { lg: "nfl" }, l) : null;
@@ -3223,7 +3232,7 @@ const Sync = (() => {
       `<div class="svedit"><label>Stake $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="stake|${b.id}" value="${b.stake === null || b.stake === undefined ? "" : b.stake}"></label><label>Odds <input class="proj-in" type="text" inputmode="numeric" data-bf="odds|${b.id}" value="${odd(b.odds)}" placeholder="+400"></label><label>To win $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="toWin|${b.id}" value="${b.toWin === null || b.toWin === undefined ? "" : b.toWin}"></label></div>` +
       `<div class="chips" style="margin-top:8px">` + [...(b.type === "teaser" && b.legs && b.legs.length && typeof b.legs[0] === "object" ? [["auto", "Auto"]] : []), ["pending", "Open"], ["won", "Won"], ["lost", "Lost"], ["push", "Push"]].map(([k, l]) => `<button type="button" class="mini" data-bres="${k}|${b.id}" aria-pressed="${(b.result || "pending") === k}">${l}</button>`).join("") +
       `<button type="button" class="mini" data-breal="${b.id}" aria-pressed="${!!b.real}">${b.real ? "Real money" : "Practice"}</button></div>` +
-      (b.legs && b.legs.length ? `<details open><summary>Legs</summary><ul class="svlegs">${b.legs.map((l) => `<li class="lgrow">${legText(l, b.pts || 0, b)}</li>`).join("")}</ul></details>` : "") +
+      (b.legs && b.legs.length ? `<details open><summary>Legs</summary><ul class="svlegs">${b.legs.map((l, i) => [l, i]).sort((p, q) => kickKey(typeof p[0] === "object" && RE.legGame ? RE.legGame(b, p[0]) : null).localeCompare(kickKey(typeof q[0] === "object" && RE.legGame ? RE.legGame(b, q[0]) : null)) || p[1] - q[1]).map(([l]) => `<li class="lgrow">${legText(l, b.pts || 0, b)}</li>`).join("")}</ul></details>` : "") +
       `<div class="svedit"><button type="button" class="mini" data-bdel="${b.id}">Delete</button></div></div>`;
   }
   root.addEventListener("click", (e) => {
