@@ -3163,19 +3163,32 @@ const Board = (() => {
   render();
 })();
 
+// ---------- Players, Defenses and Top hit rates share one switch at the top of each page ----------
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const parts = [["tab-players", "view-players", "Players"], ["tab-def", "view-def", "Defenses"], ["tab-top", "view-top", "Top hit rates"]];
+  for (const [, vid] of parts) {
+    const v = $(vid), row = document.createElement("div");
+    row.className = "chips"; row.style.margin = "0 0 12px"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "Prop views");
+    row.innerHTML = parts.map(([t, w, l]) => `<button type="button" class="chip" data-prsw="${t}" aria-pressed="${w === vid}">${l}</button>`).join("");
+    row.addEventListener("click", (e) => { const b = e.target.closest("button[data-prsw]"); if (b) { $(b.dataset.prsw).click(); window.scrollTo(0, 0); } });
+    v.insertBefore(row, v.firstChild);
+  }
+})();
+
 // ---------- Home screen: buttons and cards you can show, hide and reorder (kept in this browser) ----------
 (function () {
   const $ = (id) => document.getElementById(id), root = $("hm-root");
   const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const KEY = "re-home-v1";
   const GROUPS = [["bet", "Betting"], ["res", "Research"], ["fan", "Fantasy and draft"]];
-  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease", "bet"], ["bets", "Bets", "Track real and practice bets", "tab-bets", "bet"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn", "bet"], ["teams", "Teams", "Offense and defense rankings", "tab-teams", "res"], ["players", "Players", "Prop hit rates by player", "tab-players", "res"], ["def", "Defenses", "Hit rates by defense", "tab-def", "res"], ["top", "Top hit rates", "Best props right now", "tab-top", "res"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj", "fan"], ["draft", "Draft", "Your big board and mock draft", "tab-draft", "fan"]];
+  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease", "bet"], ["bets", "Bets", "Track real and practice bets", "tab-bets", "bet"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn", "bet"], ["teams", "Teams", "Offense and defense rankings", "tab-teams", "res"], ["players", "Players", "Prop hit rates, by player or defense", "tab-players", "res"], ["def", "Defenses", "Hit rates by defense", "tab-def", "res"], ["top", "Top hit rates", "Best props right now", "tab-top", "res"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj", "fan"], ["draft", "Draft", "Your big board and mock draft", "tab-draft", "fan"]];
   const SHORT = { tease: "Lines", top: "Hit rates" };
   const ICO = { home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>', tease: '<path d="M4 6h16M4 12h16M4 18h10"/>', teams: '<path d="M5 20V11M12 20V4M19 20v-6"/>', players: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', def: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>', top: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>', proj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.5 5-1.5 5 .5s-5 2-5 4 5 2 5 .5"/>', bets: '<path d="M4 4h16v16l-3-2-3 2-3-2-3 2-4-2z"/><path d="M8 9h8M8 13h5"/>', draft: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h6"/>', saved: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>', settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>' };
   const ico = (n) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n] || ""}</svg>`;
   const CARDS = [["up", "Upcoming games"], ["moves", "Line moves"], ["bets", "Open bets"], ["tease", "Teaser candidates"], ["draft", "My draft board"]];
   const DEFAULT = [...TILES.map((t) => "t:" + t[0]), ...CARDS.map((c) => "c:" + c[0])];
-  let L = { order: DEFAULT.slice(), hidden: [], bar: ["tease", "teams", "proj"] }, editing = false;
+  let L = { order: DEFAULT.slice(), hidden: ["t:def", "t:top"], bar: ["tease", "teams", "proj"] }, editing = false;
   try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r && Array.isArray(r.order)) { L.order = r.order.filter((k) => DEFAULT.includes(k)); L.hidden = (r.hidden || []).filter((k) => DEFAULT.includes(k)); if (Array.isArray(r.bar) && r.bar.length === 3 && r.bar.every((k) => TILES.some((t) => t[0] === k))) L.bar = r.bar; } } catch (e) { /* storage not available */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) { /* storage not available */ } };
   const sync = () => { for (const k of DEFAULT) if (!L.order.includes(k)) L.order.push(k); };
@@ -3267,7 +3280,7 @@ const Board = (() => {
   }
   function renderBar() {
     const nav = $("botbar"); if (!nav) return;
-    const cur = document.querySelector('.tabs [aria-selected="true"]'), curId = cur ? cur.id : "";
+    const cur = document.querySelector('.tabs [aria-selected="true"]'), curId = cur ? (cur.id === "tab-def" || cur.id === "tab-top" ? "tab-players" : cur.id) : "";
     const items = [["home", "Home", "tab-home"], ...L.bar.map((k) => { const t = TILES.find((x) => x[0] === k); return [k, SHORT[k] || t[1], t[3]]; }), ["settings", "Settings", "st-btn"]];
     nav.innerHTML = items.filter(([, , id]) => { const el = $(id); return !(el && el.hidden && id !== "st-btn" && id !== "sv-btn"); }).map(([k, l, id]) => `<button type="button" data-bar="${id}" class="${curId === id ? "on" : ""}" ${curId === id ? 'aria-current="page"' : ""} aria-label="${esc(l)}">${ico(k)}<span>${esc(l)}</span></button>`).join("");
   }
