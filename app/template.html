@@ -104,6 +104,11 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .results li.none { cursor: default; color: var(--ink2); }
 .results .mt { color: var(--ink2); font-size: 13px; white-space: nowrap; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.gamerow { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; margin: 8px 0 0; -webkit-overflow-scrolling: touch; }
+.gamerow:empty { display: none; }
+.gpill { flex: 0 0 auto; min-width: 74px; padding: 6px 10px; border: 1px solid var(--axis); background: var(--surface); border-radius: 10px; font-size: 13px; font-weight: 700; line-height: 1.25; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; color: inherit; }
+.gpill small { font-weight: 500; opacity: .7; font-size: 11px; margin-top: 2px; white-space: nowrap; }
+.gpill[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
 .chip { height: 42px; padding: 0 14px; border: 1px solid var(--axis); background: var(--surface); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 #lg-sw, .tabs { display: none !important; }
@@ -822,7 +827,6 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
         <label class="lbl" for="p-q">Find a player</label>
         <input id="p-q" type="text" autocomplete="off" spellcheck="false" placeholder="Name or team">
       </div>
-      <div class="field"><label class="lbl" for="p-game">Game</label><select id="p-game"><option value="">All games</option></select></div>
       <label class="check"><input type="checkbox" id="p-hide" checked> Only players with a projection</label>
     </section>
     <p class="notes" id="p-note"></p>
@@ -865,6 +869,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     </section>
 
     <div class="chips" id="p-pos" role="group" aria-label="Show positions"></div>
+    <div class="gamerow" id="p-games" role="group" aria-label="Pick a game"></div>
     <p class="tiles-head" id="p-head" style="margin:0"></p>
     <section class="panel" aria-label="Projections">
       <div class="tablewrap" style="margin-top:0"><table id="p-table"></table></div>
@@ -2473,7 +2478,7 @@ const Sync = (() => {
   const f1 = (v) => (v === null || v === undefined ? "–" : (Math.round(v * 10) / 10).toFixed(1));
   const CAP = 50000;
   const S = { dk: null, pos: "ALL", sort: "proj", obj: "proj", hide: true, q: "", game: "", lineup: [], detail: null, locks: new Set(), stars: new Set(), poolOnly: false, from: "all", excl: new Set(), over: {}, rules: { maxGame: 0, maxTeam: 0, maxDst: 0, noTeFlex: false, stack: 0, bring: 0, stackTeam: "", avoid: "" } };
-  const el = { file: $("p-file"), paste: $("p-paste"), pos: $("p-pos"), obj: $("p-obj"), q: $("p-q"), game: $("p-game"), hide: $("p-hide"), note: $("p-note"), body: $("p-body"), sum: $("p-sum"), msg: $("p-msg"), head: $("p-head"), table: $("p-table") };
+  const el = { file: $("p-file"), paste: $("p-paste"), pos: $("p-pos"), obj: $("p-obj"), q: $("p-q"), hide: $("p-hide"), note: $("p-note"), body: $("p-body"), sum: $("p-sum"), msg: $("p-msg"), head: $("p-head"), table: $("p-table") };
   const OUT = new Set(["OUT", "IR", "D"]);
   const SLOTS = ["QB", "RB", "RB", "WR", "WR", "WR", "TE", "FLEX", "DST"];
   const BASE = { QB: [0], RB: [1, 2], WR: [3, 4, 5], TE: [6], DST: [8] };
@@ -2575,7 +2580,6 @@ const Sync = (() => {
     el.note.textContent = `Loaded ${res.rows.length} players from the file. ${P.filter((x) => x.matched).length} have a projection. Players DraftKings lists as OUT, IR or doubtful have no projection (the stats can't see injuries). Type a number in his Proj box if you want to use him.` +
       (un.length ? ` No projection for: ${un.slice(0, 8).map((x) => x.name).join(", ")}${un.length > 8 ? " and " + (un.length - 8) + " more" : ""}. Type a number in a player's Proj box to use him.` : "");
     const games = [...new Set(res.rows.map((r) => r.game).filter(Boolean))].sort();
-    el.game.innerHTML = '<option value="">All games</option>' + games.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join("");
     S.game = "";
     const tms = [...new Set(res.rows.filter((r) => r.pos === "QB").map((r) => r.team))].sort();
     $("r-steam").innerHTML = '<option value="">Any team</option>' + tms.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
@@ -2627,6 +2631,9 @@ const Sync = (() => {
     refreshPool();
     el.pos.innerHTML = ["ALL", "QB", "RB", "WR", "TE", "FLEX", "DST"].map((p) => `<button type="button" class="chip" data-pos="${p}" aria-pressed="${p === S.pos}" ${p === "FLEX" ? 'title="RB, WR and TE together (what DraftKings allows in FLEX)"' : ""}>${p === "ALL" ? "All" : p}</button>`).join("") +
       (S.dk ? `<button type="button" class="chip" data-pool="1" aria-pressed="${S.poolOnly}">★ My pool (${S.stars.size})</button>${S.stars.size ? ' <button type="button" class="linkbtn" data-clearstars="1">clear stars</button>' : ""}` : "");
+    const gmap = new Map();
+    if (S.dk) for (const r of S.dk) if (r.game && !gmap.has(r.game)) gmap.set(r.game, r);
+    $("p-games").innerHTML = [...gmap.values()].sort((a, b) => (a.ko || "~").localeCompare(b.ko || "~") || a.game.localeCompare(b.game)).map((r) => { const [a, h] = r.game.split("@"); return `<button type="button" class="gpill" data-game="${esc(r.game)}" aria-pressed="${S.game === r.game}"><span>${esc(a)}</span><span>@ ${esc(h)}</span>${r.kol ? `<small>${esc(r.kol)}</small>` : ""}</button>`; }).join("");
     const has = !!S.dk;
     if (S.detail) renderDetail();
     $("p-lineup").hidden = false;
@@ -2647,7 +2654,7 @@ const Sync = (() => {
     const inLine = S.lineup.map((id) => P.find((x) => x.id === id)).filter(Boolean), openN = 9 - inLine.length, leftCap = CAP - inLine.reduce((a, x) => a + x.salary, 0), minSal = Math.min(...P.filter((x) => x.salary > 0).map((x) => x.salary));
     const broke = (p) => has && inLine.length > 0 && openN > 0 && !S.lineup.includes(p.id) && p.salary + (openN - 1) * minSal > leftCap;
     const nBroke = shown.filter(broke).length;
-    el.head.textContent = `Week ${F.week} projections · ${total} players` + (nBroke ? ` · ${nBroke} red: can't fit under the cap with your open spots` : "") + (total > 100 ? " (showing the top 100; use the filters or search to see others)" : "") + ".";
+    el.head.textContent = `Week ${F.week} projections${S.game ? " · " + S.game.replace("@", " at ") : ""} · ${total} players` + (nBroke ? ` · ${nBroke} red: can't fit under the cap with your open spots` : "") + (total > 100 ? " (showing the top 100; use the filters or search to see others)" : "") + ".";
     const sb = (k, label) => `<button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${S.sort === k}">${label}</button>`;
     el.table.innerHTML = `<thead><tr><th>Player</th>${has ? `<th class="num">${sb("salary", "Salary")}</th>` : ""}<th class="num">${sb("proj", "Proj")}</th><th class="num">${sb("floor", "Floor")} – Ceil</th><th class="num">${sb("opp", "Opp rank")}</th><th class="num">Recent avg</th>${has ? `<th class="num">${sb("value", "Per $1k")}</th><th></th>` : ""}</tr></thead><tbody>` +
       shown.map((p) => {
@@ -2677,7 +2684,7 @@ const Sync = (() => {
   $("r-from").addEventListener("change", (e) => { S.from = e.target.value; render(); });
   el.obj.addEventListener("change", () => { S.obj = el.obj.value; render(); });
   el.hide.addEventListener("change", () => { S.hide = el.hide.checked; render(); });
-  el.game.addEventListener("change", () => { S.game = el.game.value; render(); });
+  $("p-games").addEventListener("click", (e) => { const b = e.target.closest("button[data-game]"); if (!b) return; S.game = S.game === b.dataset.game ? "" : b.dataset.game; render(); });
   el.q.addEventListener("input", () => { S.q = el.q.value; render(); });
   $("r-game").addEventListener("change", (e) => { S.rules.maxGame = +e.target.value; render(); });
   $("r-team").addEventListener("change", (e) => { S.rules.maxTeam = +e.target.value; render(); });

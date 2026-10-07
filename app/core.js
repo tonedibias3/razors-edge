@@ -216,8 +216,16 @@ function parseDK(text) {
     let opp = "", game = "";
     const m = iGame >= 0 && String(r[iGame]).match(/^([A-Za-z]+)@([A-Za-z]+)/);
     if (m) { const a = dkTeam(m[1]), h = dkTeam(m[2]); game = a + "@" + h; opp = team === a ? h : a; }
+    let ko = "", kol = "";
+    const tm = iGame >= 0 && String(r[iGame]).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (tm) {
+      let hh = +tm[4] % 12; if (/pm/i.test(tm[6])) hh += 12;
+      ko = `${tm[3]}-${tm[1].padStart(2, "0")}-${tm[2].padStart(2, "0")} ${String(hh).padStart(2, "0")}:${tm[5]}`;
+      const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(Date.UTC(+tm[3], +tm[1] - 1, +tm[2])).getUTCDay()];
+      kol = `${dow} ${+tm[4]}:${tm[5]}${/pm/i.test(tm[6]) ? "p" : "a"}`;
+    }
     const fp = iFp >= 0 ? parseFloat(r[iFp]) : NaN;
-    rows.push({ id: iId >= 0 ? r[iId] : name, name, pos: r[iPos].trim().toUpperCase(), team, opp, game, salary, fppg: Number.isFinite(fp) ? fp : null, status: iSt >= 0 ? (r[iSt] || "").trim().toUpperCase() : "" });
+    rows.push({ id: iId >= 0 ? r[iId] : name, name, pos: r[iPos].trim().toUpperCase(), team, opp, game, ko, kol, salary, fppg: Number.isFinite(fp) ? fp : null, status: iSt >= 0 ? (r[iSt] || "").trim().toUpperCase() : "" });
   }
   return { rows, error: rows.length ? null : "No players found in that file." };
 }
