@@ -527,7 +527,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
   <div class="view" id="view-home" role="tabpanel" aria-labelledby="tab-home">
     <div class="chips" style="margin:0 0 10px;justify-content:space-between">
       <h2 style="margin:0">Home</h2>
-      <button type="button" class="chip" id="hm-edit" aria-pressed="false">✎ Edit layout</button>
+      <span class="chips" style="margin:0"><button type="button" class="chip" id="hm-sync" hidden>⟳ Sync</button><button type="button" class="chip" id="hm-edit" aria-pressed="false">✎ Edit layout</button></span>
     </div>
     <div id="hm-root"></div>
   </div>
@@ -931,6 +931,10 @@ const Saved = (() => {
   try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) for (const k of Object.keys(d)) if (Array.isArray(r[k])) d[k] = r[k]; } catch (e) { ok = false; }
   const subs = [];
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  // ids deleted on this device (with when), so a sync doesn't bring them back
+  let tomb = {}; try { tomb = JSON.parse(localStorage.getItem("re-tomb-v1") || "{}") || {}; } catch (e) { tomb = {}; }
+  const saveTomb = () => { try { localStorage.setItem("re-tomb-v1", JSON.stringify(tomb)); } catch (e) { /* storage not available */ } };
+  const stamp = (x) => x.u || x.at || 0;
   function commit() { try { localStorage.setItem(KEY, JSON.stringify(d)); ok = true; } catch (e) { ok = false; } subs.forEach((f) => f()); }
   const pk = (x) => [x.pid, x.stat, x.line, x.side].join("|");
   return {
@@ -941,21 +945,35 @@ const Saved = (() => {
     hasPick(x) { const k = this.pickKey(x); return d.picks.some((y) => this.pickKey(y) === k); },
     togglePick(x) {
       const k = this.pickKey(x), i = d.picks.findIndex((y) => this.pickKey(y) === k);
-      if (i >= 0) d.picks.splice(i, 1); else d.picks.unshift({ id: uid(), at: Date.now(), odds: null, note: "", ...x });
+      if (i >= 0) { tomb[d.picks[i].id] = Date.now(); saveTomb(); d.picks.splice(i, 1); } else d.picks.unshift({ id: uid(), at: Date.now(), u: Date.now(), odds: null, note: "", ...x });
       commit();
       return i < 0;
     },
     hasProp: (pid, stat, line, side) => d.props.some((x) => pk(x) === [pid, stat, line, side].join("|")),
     toggleProp(p) {
       const i = d.props.findIndex((x) => pk(x) === pk(p));
-      if (i >= 0) d.props.splice(i, 1); else d.props.unshift({ id: uid(), at: Date.now(), ...p });
+      if (i >= 0) { tomb[d.props[i].id] = Date.now(); saveTomb(); d.props.splice(i, 1); } else d.props.unshift({ id: uid(), at: Date.now(), u: Date.now(), ...p });
       commit();
       return i < 0;
     },
-    add(kind, item) { d[kind].unshift({ id: uid(), at: Date.now(), ...item }); commit(); },
-    remove(kind, id) { const i = d[kind].findIndex((x) => x.id === id); if (i >= 0) { d[kind].splice(i, 1); commit(); } },
-    update(kind, id, patch) { const x = d[kind].find((y) => y.id === id); if (x) { Object.assign(x, patch); commit(); } },
-    clear(kind) { d[kind].length = 0; commit(); },
+    add(kind, item) { d[kind].unshift({ id: uid(), at: Date.now(), u: Date.now(), ...item }); commit(); },
+    remove(kind, id) { const i = d[kind].findIndex((x) => x.id === id); if (i >= 0) { tomb[id] = Date.now(); saveTomb(); d[kind].splice(i, 1); commit(); } },
+    update(kind, id, patch) { const x = d[kind].find((y) => y.id === id); if (x) { Object.assign(x, patch, { u: Date.now() }); commit(); } },
+    clear(kind) { const n = Date.now(); for (const x of d[kind]) tomb[x.id] = n; saveTomb(); d[kind].length = 0; commit(); },
+    // what goes to the sync file, and how a copy from another device is merged in (newest edit wins per item; deletions stick)
+    syncPayload: () => ({ saved: { props: d.props, picks: d.picks, lineups: d.lineups, teasers: d.teasers, bets: d.bets }, tomb }),
+    mergeRemote(r) {
+      if (!r) return;
+      const old = Date.now() - 90 * 864e5;
+      for (const [id, ts] of Object.entries(r.tomb || {})) if (ts > old && !(tomb[id] >= ts)) tomb[id] = ts;
+      for (const id of Object.keys(tomb)) if (tomb[id] < old) delete tomb[id];
+      for (const k of Object.keys(d)) {
+        const by = new Map(d[k].map((x) => [x.id, x]));
+        for (const x of Array.isArray(r.saved && r.saved[k]) ? r.saved[k] : []) { if (!x || !x.id) continue; const l = by.get(x.id); if (!l || stamp(x) > stamp(l)) by.set(x.id, x); }
+        d[k] = [...by.values()].filter((x) => !(tomb[x.id] && tomb[x.id] > stamp(x))).sort((a, b) => (b.at || 0) - (a.at || 0));
+      }
+      saveTomb(); commit();
+    },
     exportJSON: () => JSON.stringify({ app: "razors-edge", v: 1, props: d.props, picks: d.picks, lineups: d.lineups, teasers: d.teasers, bets: d.bets }, null, 1),
     importJSON(text) {
       let r;
@@ -972,11 +990,17 @@ const Saved = (() => {
 
 // ---------- Your draft big board and mock draft picks: kept in this browser, and included in the Saved backup ----------
 const Board = (() => {
-  const KEY = "re-board-v1", b = { items: [], mock: {}, never: [] };
-  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; if (Array.isArray(r.never)) b.never = r.never; } } catch (e) { /* storage not available */ }
+  const KEY = "re-board-v1", b = { items: [], mock: {}, never: [], t: 0 };
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r) { if (Array.isArray(r.items)) b.items = r.items; if (r.mock && typeof r.mock === "object") b.mock = r.mock; if (Array.isArray(r.never)) b.never = r.never; if (typeof r.t === "number") b.t = r.t; } } catch (e) { /* storage not available */ }
   const subs = [];
   b.on = (f) => subs.push(f);
-  b.save = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock, never: b.never })); } catch (e) { /* storage not available */ } subs.forEach((f) => f()); };
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({ items: b.items, mock: b.mock, never: b.never, t: b.t })); } catch (e) { /* storage not available */ } };
+  b.save = () => { b.t = Date.now(); persist(); subs.forEach((f) => f()); };
+  b.payload = () => ({ t: b.t, items: b.items, mock: b.mock, never: b.never });
+  b.mergeRemote = (r) => {
+    if (!r || typeof r.t !== "number" || !Array.isArray(r.items)) return;
+    if (b.t === 0 && b.items.length) { for (const x of r.items) if (!b.items.some((y) => y.id === x.id)) b.items.push(x); for (const x of Array.isArray(r.never) ? r.never : []) if (!b.never.some((y) => y.k === x.k)) b.never.push(x); b.save(); return; }
+    if (r.t <= b.t) return; b.items = r.items; b.mock = r.mock && typeof r.mock === "object" ? r.mock : {}; b.never = Array.isArray(r.never) ? r.never : []; b.t = r.t; persist(); subs.forEach((f) => f()); };
   const ex = Saved.exportJSON, im = Saved.importJSON;
   Saved.exportJSON = () => { const o = JSON.parse(ex()); o.board = b.items; o.mock = b.mock; o.never = b.never; return JSON.stringify(o, null, 1); };
   Saved.importJSON = (text) => {
@@ -985,6 +1009,77 @@ const Board = (() => {
     return res;
   };
   return b;
+})();
+
+// ---------- Sync between devices: your saved things go to a private GitHub Gist in your own account ----------
+const Sync = (() => {
+  const KEY = "re-sync-v1", FILE = "razors-edge-sync.json", DESC = "Razor's Edge sync";
+  const cfg = { token: "", gist: "", last: 0, msg: "", bad: false };
+  try { Object.assign(cfg, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { /* storage not available */ }
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) { /* storage not available */ } };
+  const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let busy = false;
+  async function api(path, opts) {
+    let r;
+    try { r = await fetch("https://api.github.com" + path, { ...opts, headers: { Authorization: "Bearer " + cfg.token, Accept: "application/vnd.github+json", "Content-Type": "application/json" } }); }
+    catch (e) { const x = new Error("Couldn't reach GitHub. Check your connection and try again."); x.net = true; throw x; }
+    if (r.status === 401) { const x = new Error("GitHub rejected the token. Make a new one and paste it again."); x.auth = true; throw x; }
+    if (!r.ok) { const x = new Error(r.status === 403 ? "GitHub says the token can't do that. It needs the \"gist\" permission." : "GitHub returned an error (" + r.status + ")."); x.status = r.status; throw x; }
+    return r.json();
+  }
+  async function find() {
+    for (let pg = 1; pg <= 5; pg++) {
+      const list = await api("/gists?per_page=100&page=" + pg);
+      const g = list.find((x) => x.files && x.files[FILE]);
+      if (g) return g.id;
+      if (list.length < 100) break;
+    }
+    return "";
+  }
+  async function read(id) {
+    const g = await api("/gists/" + id), f = g.files && g.files[FILE];
+    if (!f) return null;
+    const text = f.truncated && f.raw_url ? await (await fetch(f.raw_url)).text() : f.content;
+    try { return JSON.parse(text); } catch (e) { return null; }
+  }
+  async function run() {
+    if (busy) return;
+    busy = true; paint();
+    try {
+      let id = cfg.gist, remote = null;
+      if (!id) id = await find();
+      if (id) { try { remote = await read(id); } catch (e) { if (e.status === 404) id = ""; else throw e; } }
+      if (remote && remote.app === "razors-edge") { Saved.mergeRemote(remote); Board.mergeRemote(remote.board); }
+      const content = JSON.stringify({ app: "razors-edge", v: 2, at: Date.now(), ...Saved.syncPayload(), board: Board.payload() });
+      if (id) await api("/gists/" + id, { method: "PATCH", body: JSON.stringify({ files: { [FILE]: { content } } }) });
+      else id = (await api("/gists", { method: "POST", body: JSON.stringify({ description: DESC, public: false, files: { [FILE]: { content } } }) })).id;
+      cfg.gist = id; cfg.last = Date.now(); cfg.msg = "Synced."; cfg.bad = false;
+    } catch (e) { cfg.msg = e.message || "Sync failed."; cfg.bad = true; if (e.auth) { cfg.token = ""; cfg.gist = ""; } }
+    finally { busy = false; persist(); paint(); }
+  }
+  const ago = (t) => { if (!t) return "never"; const m = Math.round((Date.now() - t) / 6e4); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " hr ago" : new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" }); };
+  function box() {
+    if (!cfg.token) return `<span class="lbl">Sync between devices</span><p class="notes" style="margin:0 0 8px">Keeps your bets, picks, lineups, teasers, draft board and never-play list the same on every device. They are saved to a private Gist in your own GitHub account.</p>` +
+      `<ol class="notes" style="text-align:left;margin:0 0 8px;padding-left:20px"><li><a href="https://github.com/settings/tokens/new?description=Razor%27s%20Edge%20sync&scopes=gist" target="_blank" rel="noopener">Make a token</a> (it is pre-set to the gist permission only). Scroll down, press Generate token, and copy it.</li><li>Paste it below and press Connect.</li><li>On your other devices, paste the same token.</li></ol>` +
+      `<input type="password" id="sy-token" class="proj-in" style="width:100%;box-sizing:border-box" placeholder="Paste token (starts with ghp_)" autocomplete="off" aria-label="GitHub token"><div class="chips" style="margin-top:8px"><button type="button" class="chip primary" data-sync="connect">Connect and sync</button></div><p class="notes" id="sy-status" style="margin:6px 0 0;${cfg.bad ? "color:var(--bad)" : ""}">${esc(cfg.msg)}</p>`;
+    return `<span class="lbl">Sync between devices</span><p class="notes" style="margin:0 0 8px">Connected. Last synced ${esc(ago(cfg.last))}.</p><div class="chips"><button type="button" class="chip primary" data-sync="now" ${busy ? "disabled" : ""}>${busy ? "Syncing…" : "Sync now"}</button><button type="button" class="chip" data-sync="off">Disconnect this device</button></div><p class="notes" id="sy-status" style="margin:6px 0 0;${cfg.bad ? "color:var(--bad)" : ""}">${esc(cfg.msg)}</p><p class="notes" style="margin:6px 0 0">Newest edit wins for each bet or pick, and deletions carry over. The draft board uses whichever device saved it last. Home layout and bottom bar stay separate on each device.</p>`;
+  }
+  function paint() {
+    const b = document.getElementById("sy-box"); if (b) b.innerHTML = box();
+    const h = document.getElementById("hm-sync"); if (h) { h.hidden = !cfg.token; h.disabled = busy; h.textContent = busy ? "⟳ Syncing…" : "⟳ Sync"; }
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-sync], #hm-sync"); if (!b) return;
+    const a = b.id === "hm-sync" ? "now" : b.dataset.sync;
+    if (a === "connect") { const t = (document.getElementById("sy-token").value || "").trim(); if (!t) { cfg.msg = "Paste the token first."; cfg.bad = true; paint(); return; } cfg.token = t; cfg.gist = ""; cfg.msg = ""; cfg.bad = false; persist(); paint(); run(); }
+    else if (a === "now") run();
+    else if (a === "off") { cfg.token = ""; cfg.gist = ""; cfg.last = 0; cfg.msg = ""; persist(); paint(); }
+  });
+  // quietly sync when the page opens, if it has been a while
+  if (cfg.token) setTimeout(() => { if (Date.now() - cfg.last > 10 * 6e4) run(); }, 1500);
+  paint();
+  RE.syncBox = box;
+  return { run, cfg };
 })();
 
 (function () {
@@ -2640,6 +2735,7 @@ const Board = (() => {
     $("st-body").innerHTML = `<h2 id="st-title">Settings</h2>` +
       `<div class="setrow"><span class="lbl">Look</span><div class="looks" role="group" aria-label="Look">` + LOOKS.map(([k, l, d]) => `<button type="button" class="chip" data-look="${k}" aria-pressed="${st.look === k}">${l}<span class="d">${d}</span></button>`).join("") + `</div></div>` +
       `<div class="setrow"><span class="lbl">Dark or light</span><div class="chips" role="group" aria-label="Dark or light">` + [["dark", "☾ Dark"], ["light", "☀ Light"]].map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${st.mode === k}" ${lockMode ? "disabled" : ""}>${l}</button>`).join("") + `</div>${lockMode ? '<p class="notes" style="margin:6px 0 0">Paper is always light.</p>' : ""}</div>` +
+      `<div class="setrow" id="sy-box">${RE.syncBox ? RE.syncBox() : ""}</div>` +
       `<div class="setrow"><span class="lbl">College football</span><p class="notes" style="margin:0">${COL ? `On: ${COL.sched.filter((r) => r[0] === COL.season).length} FBS games this season with lines. Lines and teasers only.` : `Off${DATA.college && DATA.college.reason ? ": " + esc(DATA.college.reason) : ""}. It turns on after the CFBD_API_KEY secret is added and the page rebuilds.`}</p></div>` +
       `<div class="setrow"><span class="lbl">Betting lines</span><p class="notes" style="margin:0">${DATA.odds && DATA.odds.ok ? `Live feed on. Last updated ${Object.entries(DATA.odds.updated || {}).map(([k, v]) => (k === "cfb" ? "college " : "NFL ") + etFmt2(v) + " ET").join(", ")}.${DATA.odds.credits != null ? ` About ${esc(DATA.odds.credits)} free requests left this month.` : ""}${DATA.odds.error ? " Latest refresh failed: " + esc(DATA.odds.error) : ""}` : `Using the free schedule file's lines (they can lag your book).${DATA.odds && DATA.odds.reason ? " " + esc(DATA.odds.reason) : ""} Add the ODDS_API_KEY secret to get daily line updates and movement.`}</p></div>` +
       `<div class="setrow"><span class="lbl">Handwriting on your slip</span><div class="chips" role="group" aria-label="Handwriting font">` + HANDS.map(([k, l]) => `<button type="button" class="chip" data-hand="${k}" aria-pressed="${st.hand === k}">${l}</button>`).join("") + `</div>` +

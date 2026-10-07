@@ -10,6 +10,7 @@ Personal NFL and college football research tool. It is one web page that rebuild
 - **Players, Defenses, Top hit rates** (NFL): prop-bet hit rates by player and by defense, with opponent rank.
 - **DFS** (NFL): DraftKings lineup builder with projections.
 - **Bets**: track real and practice bets (teasers, parlays, straight bets), with profit, record and grading from final scores.
+- **Sync between devices** (Settings): saves your bets, picks, lineups, teasers, draft board and never-play list to a private GitHub Gist in your own account, so every device matches. One-time setup per device: make a GitHub token with only the `gist` permission and paste it in Settings.
 - **Saved**: props, picks, lineups and teasers you save. Everything you save or edit lives in your own browser only (it is never sent to GitHub or this repository).
 
 ## Where the data comes from
