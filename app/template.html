@@ -2902,14 +2902,20 @@ const Sync = (() => {
     const opts = options(all); if (!opts.some((o) => o[0] === T.f[L])) T.f[L] = "all";
     $("ts-conf").innerHTML = opts.map(([v, l]) => `<option value="${esc(v)}" ${v === T.f[L] ? "selected" : ""}>${esc(l)}</option>`).join("");
     const rows = all.filter((r) => inGroup(r, T.f[L]));
+    let apOf = () => null;
+    if (L === "cfb" && COL && COL.ranks) {
+      const ks = Object.keys(COL.ranks).map(Number).sort((a, b) => a - b); let kk = null; for (const x of ks) if (x <= (COL.week || 99)) kk = x;
+      const rm = kk === null ? {} : COL.ranks[String(kk)];
+      apOf = (t) => rm[t] || null;
+    }
     rows.sort((a, b) => (T.worst ? b[rk][T.sort] - a[rk][T.sort] : a[rk][T.sort] - b[rk][T.sort]) || a.team.localeCompare(b.team));
     const unit = (k) => (k === "pts" ? "pts/game" : "yds/game");
     $("ts-head").textContent = `${L === "cfb" ? "College " : ""}${T.side === "def" ? "Defense: yards and points allowed" : "Offense: yards and points gained"} per game · ${T.last ? "last " + T.last + " games" : (L === "cfb" ? COL.season : DATA.season) + " season"} · ${rows.length}${rows.length === N ? "" : " of " + N} teams · ${T.worst ? "worst" : "best"} first, tap the column again to flip`;
     $("ts-notes").textContent = L === "cfb"
-      ? "Per game, against FBS opponents only (games against smaller schools are left out). Rank is among all FBS teams, even when you filter to one conference: dark green is the top 10%, light green the next 20%, light red and dark red the bottom. For defense, 1st means the fewest allowed. Yards and points are not adjusted for schedule strength, so a team that has played an easy schedule can look better than it is. Passing yards are net of sacks. Tap a team for its spread and over/under record."
+      ? "Per game, against FBS opponents only (games against smaller schools are left out). Rank is among all FBS teams, even when you filter to one conference: dark green is the top 10%, light green the next 20%, light red and dark red the bottom. For defense, 1st means the fewest allowed. Yards and points are not adjusted for schedule strength, so a team that has played an easy schedule can look better than it is. Passing yards are net of sacks. Tap a team for its spread and over/under record. The # in front of a team is its latest AP poll rank."
       : "Per game, with the league rank next to it. Offense: 1st is the most. Defense: 1st is the fewest allowed. Dark green is the top 10% of teams, light green the next 20%, light red and dark red the bottom. The rank stays the league rank when you filter to a conference or division. Passing yards are net of sacks, so pass plus rush equals total. A defense's numbers are what opponents gained against it. Tap a team for its spread and over/under record, head-to-head and game-by-game numbers.";
     $("ts-table").innerHTML = `<thead><tr><th class="num">#</th><th>Team</th>` + COLS.map(([k, l]) => `<th class="num"><button type="button" class="linkbtn" data-sort="${k}" aria-pressed="${T.sort === k}" title="${T.sort === k ? (T.worst ? "Worst first. Tap for best first" : "Best first. Tap for worst first") : "Sort by " + l}">${l}${T.sort === k ? (T.worst ? " ▲" : " ▼") : ""}</button></th>`).join("") + `<th class="num fl">Games</th></tr></thead><tbody>` +
-      rows.map((r) => `<tr style="--tc:${tcol(r.team, L)}"><td class="num">${r[rk][T.sort]}</td><td><button type="button" class="tmpill" data-team="${esc(r.team)}" aria-label="Open ${esc(nm(r.team))} stats">${tp(r.team, L)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
+      rows.map((r) => `<tr style="--tc:${tcol(r.team, L)}"><td class="num">${r[rk][T.sort]}</td><td><button type="button" class="tmpill" data-team="${esc(r.team)}" aria-label="Open ${esc(nm(r.team))} stats">${apOf(r.team) ? `<span class="rk" title="AP poll rank">#${apOf(r.team)}</span>` : ""}${tp(r.team, L)}</button><span class="sub fl" style="display:inline">${esc(nm(r.team))}</span></td>` +
         COLS.map(([k]) => `<td class="num"${bandBg(r[rk][k], N)} title="${unit(k)}"><strong>${r[val][k].toFixed(1)}</strong><span class="sub">${ordn(r[rk][k])}</span></td>`).join("") + `<td class="num fl">${r.n}</td></tr>`).join("") + "</tbody>";
   }
   $("ts-side").addEventListener("click", (e) => { const b = e.target.closest("button[data-side]"); if (b) { T.side = b.dataset.side; render(); } });
