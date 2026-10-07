@@ -12,7 +12,7 @@ from college import ApiError, get, pick, num
 CACHE = os.path.join(college.CACHE, "draft_pool.json")
 FRESH_SECONDS = 20 * 3600
 MIN_CLASS = 3  # class year 3 = junior, 4 = senior, 5 = fifth year
-VERSION = 2    # bump when the pool's shape changes so an older cached copy is not reused
+VERSION = 3    # bump when the pool's shape changes so an older cached copy is not reused
 P4 = {"SEC", "Big Ten", "Big 12", "ACC"}   # linemen have no stats, so they are added by roster for these conferences (and Notre Dame)
 OL = {"OL", "OT", "OG", "C", "IOL"}
 GROUP = {"QB": "QB", "RB": "RB", "FB": "RB", "APB": "RB", "WR": "WR", "TE": "TE", "DL": "DL", "DT": "DL", "NT": "DL", "DE": "DL", "EDGE": "DL", "LB": "LB", "ILB": "LB", "OLB": "LB", "DB": "DB", "CB": "DB", "S": "DB", "FS": "DB", "SS": "DB"}
@@ -98,8 +98,8 @@ def build(season, fetch=get):
         conf = {t["school"]: t.get("conference") or "" for t in fetch("/teams/fbs", {"year": season}) if t.get("school")}
     except Exception:
         pass
-    for pid, p in roster.items():   # linemen: no stats to rank them by, so take them by roster from the big conferences
-        if pid not in keep and str(p["pos"]).upper() in OL and (conf.get(p["team"]) in P4 or p["team"] == "Notre Dame"):
+    for pid, p in roster.items():   # linemen have no stats and quarterbacks can be missed by a stat cutoff, so take both by roster from the big conferences
+        if pid not in keep and str(p["pos"]).upper() in (OL | {"QB"}) and (conf.get(p["team"]) in P4 or p["team"] == "Notre Dame"):
             keep.add(pid)
     pool = []
     for pid in keep:

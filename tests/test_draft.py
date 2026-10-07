@@ -19,6 +19,7 @@ def fake(path, params=None):
         rows.append({"id": 9001, "firstName": "Arch", "lastName": "Quarterback", "team": "State", "year": 3, "position": "QB", "height": 77, "weight": 225})
         rows.append({"id": 9002, "firstName": "Young", "lastName": "Freshman", "team": "State", "year": 1, "position": "QB", "height": 75, "weight": 210})
         rows.append({"id": 9003, "firstName": "Big", "lastName": "Tackle", "team": "State", "year": 4, "position": "OT", "height": 78, "weight": 315})
+        rows.append({"id": 9005, "firstName": "No Stats", "lastName": "Passer", "team": "State", "year": 3, "position": "QB", "height": 76, "weight": 220})
         rows.append({"id": 9004, "firstName": "Small", "lastName": "Tackle", "team": "Elsewhere", "year": 4, "position": "OT", "height": 78, "weight": 300})
         return rows
     if path == "/stats/player/season":
@@ -34,7 +35,8 @@ def fake(path, params=None):
 
 r = draft.build(2026, fake)
 names = {p[1]: p for p in r["pool"]}
-t("builds an ok pool", r["ok"] and r["v"] == draft.VERSION and len(r["pool"]) == 3)
+t("builds an ok pool", r["ok"] and r["v"] == draft.VERSION and len(r["pool"]) == 4)
+t("quarterback with no stats from a big conference is in", "No Stats Passer" in names)
 t("lineman from a big conference is in, a small-conference one is not", "Big Tackle" in names and "Small Tackle" not in names and names["Big Tackle"][9] == 0)
 t("QB production is his passing yards", names["Arch Quarterback"][9] == 2500)
 t("junior QB is in, freshman is not", "Arch Quarterback" in names and "Young Freshman" not in names)

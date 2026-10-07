@@ -448,7 +448,11 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 
 .dr-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 8px; }
 .dr-bar select { width: auto; max-width: 150px; }
-.dr-card { display: grid; grid-template-columns: 46px 1fr; align-items: center; gap: 0 8px; padding: 10px 12px 10px 6px; margin: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.dr-card { cursor: pointer; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 0 8px; padding: 10px 12px 10px 6px; margin: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.dr-card:hover { background: var(--hover); }
+.dr-phys { display: flex; flex-direction: column; align-items: flex-end; font-size: 13px; line-height: 1.25; color: var(--ink2); white-space: nowrap; }
+.dr-phys b { font-size: 15px; color: var(--ink); }
+.dr-sheet-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
 .dr-card.top { border-color: var(--accent); }
 .dr-rk { font-family: var(--font-display, inherit); font-size: 26px; font-weight: 800; text-align: center; color: var(--ink2); line-height: 1; }
 .dr-card.top .dr-rk { color: var(--accent); }
@@ -3182,13 +3186,17 @@ const Sync = (() => {
   const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\b(jr|sr|ii|iii|iv)\b/g, "").replace(/\s+/g, " ").trim();
   const DR = DATA.draft && DATA.draft.ok ? DATA.draft : null;
-  const POOL = DR ? DR.pool.map((r) => ({ id: "p" + r[0], name: r[1], pos: r[2], team: r[3], conf: r[4], cls: r[5], ht: r[6], wt: r[7], stat: r[8], sc: r[9] || 0, k: norm(r[1] + " " + r[3] + " " + r[2]) })) : [];
+  const POOL = DR ? DR.pool.map((r) => ({ id: "p" + r[0], name: r[1], pos: r[2], team: r[3], conf: r[4], cls: r[5], ht: r[6], wt: r[7], stat: r[8], sc: r[9] || 0, k: norm(r[1] + " " + r[3] + " " + r[2]) })).map((p) => (p.s = p.k.replace(/ /g, ""), p.w = p.k.split(" "), p)) : [];
   const BYNAME = new Map(); for (const p of POOL) { const k = norm(p.name); (BYNAME.get(k) || BYNAME.set(k, []).get(k)).push(p); }
   const GROUPS = [["all", "All positions", null], ["QB", "QB", ["QB"]], ["RB", "RB", ["RB", "FB", "APB"]], ["WR", "WR", ["WR"]], ["TE", "TE", ["TE"]], ["OL", "OL", ["OL", "OT", "OG", "C", "IOL"]], ["DL", "DL", ["DL", "DT", "NT"]], ["EDGE", "EDGE", ["DE", "EDGE"]], ["LB", "LB", ["LB", "ILB", "OLB"]], ["DB", "DB", ["DB", "CB", "S", "FS", "SS"]]];
-  const V = { mode: "board", grp: "all", q: "", note: "", edit: false, browse: false, bg: "all", bs: "", bsort: "prod", bshow: 30, trades: false, share: false, stitle: "My Big Board", ssize: "10", simg: "" };
+  const V = { mode: "board", grp: "all", q: "", note: "", edit: false, browse: false, bg: "all", bs: "", bsort: "prod", bshow: 30, trades: false, share: false, stitle: "My Big Board", ssize: "10", simg: "", ssty: "dark", shand: "Caveat", sphys: true, open: "" };
   const CLS = { 3: "Jr", 4: "Sr", 5: "5th" };
   const uid = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  const item = (p) => ({ id: p.id || uid(), name: p.name, pos: p.pos || "", team: p.team || "", cls: p.cls || null, stat: p.stat || "", tier: "", note: "", custom: !p.id });
+  const item = (p) => ({ id: p.id || uid(), name: p.name, pos: p.pos || "", team: p.team || "", cls: p.cls || null, ht: p.ht || null, wt: p.wt || null, stat: p.stat || "", tier: "", note: "", custom: !p.id });
+  const fmtHt = (h) => (h ? Math.floor(h / 12) + "'" + (h % 12) + '"' : "");
+  const phys = (it) => [fmtHt(it.ht), it.wt ? it.wt + " lb" : ""].filter(Boolean).join(" · ");
+  // boards saved before heights and weights existed: fill them in from the prospect list
+  (() => { let ch = false; const by = new Map(POOL.map((p) => [p.id, p])); for (const it of Board.items) { const q = by.get(it.id); if (q && !it.ht && q.ht) { it.ht = q.ht; it.wt = q.wt; ch = true; } } if (ch) Board.save(); })();
   const onBoard = (id) => Board.items.some((x) => x.id === id);
   const posIn = (it, g) => { const G = GROUPS.find((x) => x[0] === g); return !G || !G[2] || G[2].includes(String(it.pos).toUpperCase()); };
   const POSCOL = { QB: "#d1495b", RB: "#2a9d8f", WR: "#3b82f6", TE: "#d98e04", OL: "#8b5cf6", DL: "#ea580c", EDGE: "#be123c", LB: "#16a34a", DB: "#0891b2" };
@@ -3245,7 +3253,7 @@ const Sync = (() => {
     if (!POOL.length) return h + `<p class="notes">Browsing needs the prospect list (CFBD_API_KEY).</p></details>`;
     const r = browseRows(), shown = r.slice(0, V.bshow);
     h += `<div class="svedit"><select id="dr-bg" aria-label="Position">${opt(V.bg, GROUPS.map((g) => [g[0], g[1]]))}</select><select id="dr-bs" aria-label="School"><option value="">All schools</option>${opt(V.bs, schools.map((x) => [x, x]))}</select><select id="dr-bsort" aria-label="Sort">${opt(V.bsort, [["prod", "Most productive"], ["az", "A to Z"]])}</select></div>`;
-    h += shown.length ? shown.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span class="dr-hn"><strong>${esc(p.name)}</strong> ${posPill(p.pos)} ${tag(p.team)}${p.cls ? ` <span class="sub" style="margin:0">${CLS[p.cls]}</span>` : ""}</span><span class="sub" style="margin:0">${esc(p.stat) || "+ Add"}</span></button>`).join("") : `<p class="notes">Nobody matches. Try another position or school.</p>`;
+    h += shown.length ? shown.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span class="dr-hn"><strong>${esc(p.name)}</strong> ${posPill(p.pos)} ${tag(p.team)}${p.cls ? ` <span class="sub" style="margin:0">${CLS[p.cls]}</span>` : ""}</span><span class="sub" style="margin:0">${[phys(p), p.stat].filter(Boolean).map(esc).join(" · ") || "+ Add"}</span></button>`).join("") : `<p class="notes">Nobody matches. Try another position or school.</p>`;
     if (r.length > shown.length) h += `<div class="chips" style="margin-top:6px"><button type="button" class="chip" data-dr="more">Show more (${r.length - shown.length} left)</button></div>`;
     return h + `<p class="notes">"Most productive" sorts by this season's main stat: passing yards for QBs, rushing yards for RBs, receiving yards for WR and TE, sacks for linemen and edge players, tackles for linebackers and defensive backs. It is not a grade. Offensive linemen have no stats, so sort them A to Z. Players already on your board are hidden.</p></details>`;
   }
@@ -3253,40 +3261,75 @@ const Sync = (() => {
   function renderShare() {
     let h = `<details class="dr-det" data-shr ${V.share ? "open" : ""}><summary>Share your board as an image</summary>`;
     if (!Board.items.length) return h + `<p class="notes">Add players to your board first.</p></details>`;
-    h += `<div class="svedit"><input class="proj-in" id="dr-st" type="text" value="${esc(V.stitle)}" maxlength="40" aria-label="Image title" style="width:170px"><select id="dr-ss" aria-label="How many players">${Object.keys(IMGSIZES).map((k) => `<option value="${k}" ${V.ssize === k ? "selected" : ""}>Top ${k}</option>`).join("")}</select><button type="button" class="chip primary" data-dr="img">Make image</button></div>`;
+    h += `<div class="svedit"><input class="proj-in" id="dr-st" type="text" value="${esc(V.stitle)}" maxlength="40" aria-label="Image title" style="width:170px"><select id="dr-ss" aria-label="How many players">${Object.keys(IMGSIZES).map((k) => `<option value="${k}" ${V.ssize === k ? "selected" : ""}>Top ${k}</option>`).join("")}</select><button type="button" class="chip primary" data-dr="img">Make image</button></div>` +
+      `<div class="svedit"><select id="dr-sty" aria-label="Image style">${[["dark", "Dark card"], ["paper", "Paper notepad"], ["card", "Sports card"]].map(([k, l]) => `<option value="${k}" ${V.ssty === k ? "selected" : ""}>${l}</option>`).join("")}</select>${V.ssty === "paper" ? `<select id="dr-sh" aria-label="Handwriting">${SFONTS.map(([k, l]) => `<option value="${esc(k)}" ${V.shand === k ? "selected" : ""}>${l}</option>`).join("")}</select>` : ""}<label class="sub" style="margin:0;display:flex;align-items:center;gap:4px"><input type="checkbox" id="dr-sp" ${V.sphys ? "checked" : ""}> Height and weight</label></div>`;
     if (V.simg) h += `<img class="dr-img" src="${V.simg}" alt="Your big board as an image"><div class="chips" style="margin-top:6px"><button type="button" class="chip primary" data-dr="shareimg">Share</button><button type="button" class="chip" data-dr="dlimg">Save image</button></div>`;
     return h + `</details>`;
   }
+  const SFONTS = [["Caveat", "Caveat"], ["Reenie Beanie", "Reenie Beanie"], ["Nanum Pen Script", "Nanum Pen"], ["Kalam", "Kalam"]];
+  const HAND = { Caveat: [700, 1], "Reenie Beanie": [400, 1.3], "Nanum Pen Script": [400, 1.15], Kalam: [700, 0.82] };
   const rr = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
   const clip = (c, t, w) => { t = String(t); if (c.measureText(t).width <= w) return t; while (t.length > 1 && c.measureText(t + "…").width > w) t = t.slice(0, -1); return t + "…"; };
-  function drawBoard() {
-    const [n, cols] = IMGSIZES[V.ssize] || IMGSIZES["10"], list = Board.items.slice(0, n), W = cols === 1 ? 1080 : 1600, rows = Math.ceil(list.length / cols), rowH = cols === 1 ? 104 : 78, head = 190, foot = 90, H = head + rows * rowH + foot + 20;
+  async function drawBoard() {
+    const sty = V.ssty, hf = V.shand, [hw, hs] = HAND[hf] || [700, 1];
+    try { await Promise.all([`${hw} 40px "${hf}"`, '400 40px "Special Elite"', '400 40px "Bebas Neue"', '700 40px "Barlow Condensed"'].map((f) => document.fonts.load(f))); } catch (e) { /* fonts are optional */ }
+    const [n, cols] = IMGSIZES[V.ssize] || IMGSIZES["10"], list = Board.items.slice(0, n), W = cols === 1 ? 1080 : 1600, rows = Math.ceil(list.length / cols), rowH = cols === 1 ? 104 : 78, head = 200, foot = 100, H = head + rows * rowH + foot + 20;
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H; const c = cv.getContext("2d");
-    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0f1b33"); g.addColorStop(1, "#070d1a"); c.fillStyle = g; c.fillRect(0, 0, W, H);
-    c.fillStyle = "#e0b23c"; c.fillRect(0, 0, W, 10);
-    const F = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-    c.textBaseline = "alphabetic"; c.fillStyle = "#e0b23c"; c.font = `700 26px ${F}`; c.fillText("NFL DRAFT BIG BOARD", 60, 78);
-    c.fillStyle = "#fff"; c.font = `800 64px ${F}`; c.fillText(clip(c, V.stitle || "My Big Board", W - 120), 60, 150);
-    const colW = (W - 120 - (cols - 1) * 40) / cols;
+    const SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", HF = `"${hf}", "Segoe Print", "Bradley Hand", cursive`, TYPE = `"Special Elite", "Courier New", monospace`, BEB = `"Bebas Neue", Impact, sans-serif`, BAR = `"Barlow Condensed", "Arial Narrow", sans-serif`;
+    const colW = (W - 120 - (cols - 1) * 40) / cols, one = cols === 1, ds = new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+    const title = V.stitle || "My Big Board";
+    const pillAt = (txt, x, mid, fs, bg, fg, font, style2) => { c.font = font; const w = c.measureText(txt).width + 26, h = fs + 14; c.fillStyle = bg; rr(c, x, mid - h / 2, w, h, h / 2); c.fill(); if (style2) { c.strokeStyle = style2; c.lineWidth = 3; c.stroke(); } c.fillStyle = fg; c.textAlign = "center"; c.fillText(txt, x + w / 2, mid + 2); c.textAlign = "left"; return w; };
+    const rand = (() => { let sd = 7; return () => (sd = (sd * 16807) % 2147483647) / 2147483647; })();
+    // backgrounds
+    if (sty === "dark") { const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0f1b33"); g.addColorStop(1, "#070d1a"); c.fillStyle = g; c.fillRect(0, 0, W, H); c.fillStyle = "#e0b23c"; c.fillRect(0, 0, W, 10); }
+    else if (sty === "paper") {
+      c.fillStyle = "#e6dcc0"; c.fillRect(0, 0, W, H); for (let i = 0; i < 2500; i++) { c.fillStyle = `rgba(90,70,30,${0.03 + rand() * 0.05})`; c.fillRect(rand() * W, rand() * H, 2, 2); }
+      c.save(); c.shadowColor = "rgba(70,55,25,.35)"; c.shadowBlur = 24; c.shadowOffsetY = 8; c.fillStyle = "#fbf6e6"; rr(c, 30, 30, W - 60, H - 60, 10); c.fill(); c.restore();
+      c.strokeStyle = "rgba(100,140,180,.45)"; c.lineWidth = 2; for (let r = 0; r <= rows; r++) { const y = head + r * rowH - 6; c.beginPath(); c.moveTo(48, y); c.lineTo(W - 48, y); c.stroke(); }
+      c.strokeStyle = "rgba(179,38,30,.55)"; for (let k = 0; k < cols; k++) { const x = 60 + k * (colW + 40) + (one ? 84 : 66); c.beginPath(); c.moveTo(x, head - 6); c.lineTo(x, head + rows * rowH - 6); c.stroke(); }
+    } else { const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#e9eef7"); g.addColorStop(1, "#cdd7ea"); c.fillStyle = g; c.fillRect(0, 0, W, H); c.fillStyle = "#0c1a33"; c.fillRect(0, 0, W, head - 20); c.fillStyle = "#ffc629"; c.fillRect(0, head - 20, W, 10); }
+    // header
+    c.textBaseline = "alphabetic"; c.textAlign = "left";
+    if (sty === "dark") { c.fillStyle = "#e0b23c"; c.font = `700 26px ${SANS}`; c.fillText("NFL DRAFT BIG BOARD", 60, 78); c.fillStyle = "#fff"; c.font = `800 64px ${SANS}`; c.fillText(clip(c, title, W - 120), 60, 150); }
+    else if (sty === "paper") {
+      c.fillStyle = "#b3261e"; c.font = `400 26px ${TYPE}`; c.fillText("NFL DRAFT · BIG BOARD", 80, 92);
+      c.fillStyle = "#25231e"; c.font = `${hw} ${Math.round(84 * hs)}px ${HF}`; const t = clip(c, title, W - 200); c.fillText(t, 80, 168); const tw = c.measureText(t).width;
+      c.strokeStyle = "#b3261e"; c.lineWidth = 4; c.beginPath(); c.moveTo(80, 182); c.bezierCurveTo(80 + tw * 0.3, 176, 80 + tw * 0.6, 190, 80 + tw, 180); c.stroke();
+    } else { c.fillStyle = "#ffc629"; c.font = `400 30px ${BEB}`; c.fillText("NFL DRAFT BIG BOARD", 60, 70); c.fillStyle = "#fff"; c.font = `400 ${one ? 84 : 92}px ${BEB}`; c.fillText(clip(c, title.toUpperCase(), W - 120), 60, 150); }
+    // rows
     list.forEach((it, i) => {
-      const col = cols === 1 ? 0 : Math.floor(i / rows), row = cols === 1 ? i : i % rows, x = 60 + col * (colW + 40), y = head + row * rowH, h = rowH - 12, mid = y + h / 2;
-      c.fillStyle = "rgba(255,255,255,0.07)"; rr(c, x, y, colW, h, 14); c.fill();
-      c.fillStyle = i < 3 ? "#e0b23c" : "#9fb0cc"; c.font = `800 ${cols === 1 ? 44 : 34}px ${F}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(i + 1), x + (cols === 1 ? 44 : 38), mid + 2); c.textAlign = "left";
-      const pg = posGroup(it.pos), pc = POSCOL[pg] || "#6b7280", pt = String(it.pos || "?").toUpperCase(), fs = cols === 1 ? 26 : 21, nx = x + (cols === 1 ? 90 : 76);
-      c.font = `800 ${fs}px ${F}`; const pw = c.measureText(pt).width + 26, ph = fs + 14;
-      const sc = it.team ? colCol(it.team) : "#555", ab = it.team ? String((COL && COL.teams[it.team] && COL.teams[it.team].a) || it.team).slice(0, 6) : "";
-      c.font = `800 ${fs}px ${F}`; const sw = ab ? c.measureText(ab).width + 26 : 0;
-      const tx = x + colW - 18 - pw - (sw ? sw + 10 : 0);
-      c.fillStyle = "#fff"; c.font = `700 ${cols === 1 ? 38 : 28}px ${F}`; c.fillText(clip(c, it.name, tx - nx - 16), nx, mid + 2);
-      let px = tx; c.fillStyle = pc; rr(c, px, mid - ph / 2, pw, ph, ph / 2); c.fill(); c.fillStyle = inkOn(pc); c.font = `800 ${fs}px ${F}`; c.textAlign = "center"; c.fillText(pt, px + pw / 2, mid + 2);
-      if (sw) { px += pw + 10; c.fillStyle = sc; rr(c, px, mid - ph / 2, sw, ph, ph / 2); c.fill(); c.fillStyle = inkOn(sc); c.fillText(ab, px + sw / 2, mid + 2); }
-      c.textAlign = "left";
+      const col = one ? 0 : Math.floor(i / rows), row = one ? i : i % rows, x = 60 + col * (colW + 40), y = head + row * rowH, h = rowH - 12, mid = y + h / 2;
+      const pg = posGroup(it.pos), pc = POSCOL[pg] || "#6b7280", pt = String(it.pos || "?").toUpperCase(), fs = one ? 26 : 21, nx = x + (one ? 90 : 76);
+      const ab = it.team ? String((COL && COL.teams[it.team] && COL.teams[it.team].a) || it.team).slice(0, 6) : "", sc = it.team ? colCol(it.team) : "#555";
+      const sub = V.sphys ? [fmtHt(it.ht), it.wt ? it.wt + " lb" : "", it.cls ? CLS[it.cls] : ""].filter(Boolean).join("  ·  ") : "";
+      const nameDy = sub ? (one ? -14 : -11) : 2, subDy = one ? 24 : 18;
+      c.save(); c.textBaseline = "middle"; c.textAlign = "left";
+      if (sty === "paper") c.translate(0, 0), c.rotate((((i * 37) % 7) - 3) * 0.0018);
+      let nameFont, rankFont, subFont, nameCol, rankCol, subCol;
+      if (sty === "dark") { c.fillStyle = "rgba(255,255,255,0.07)"; rr(c, x, y, colW, h, 14); c.fill(); nameFont = `700 ${one ? 38 : 28}px ${SANS}`; rankFont = `800 ${one ? 44 : 34}px ${SANS}`; subFont = `500 ${one ? 22 : 18}px ${SANS}`; nameCol = "#fff"; rankCol = i < 3 ? "#e0b23c" : "#9fb0cc"; subCol = "#9fb0cc"; }
+      else if (sty === "card") { c.save(); c.fillStyle = "rgba(12,26,51,.28)"; rr(c, x + 5, y + 5, colW, h, 12); c.fill(); c.restore(); c.fillStyle = "#fff"; rr(c, x, y, colW, h, 12); c.fill(); c.strokeStyle = "#0c1a33"; c.lineWidth = 3; c.stroke(); c.fillStyle = sc; c.save(); rr(c, x, y, colW, h, 12); c.clip(); c.fillRect(x, y, 16, h); c.restore(); nameFont = `700 ${one ? 44 : 34}px ${BAR}`; rankFont = `400 ${one ? 58 : 46}px ${BEB}`; subFont = `600 ${one ? 24 : 20}px ${BAR}`; nameCol = "#0c1a33"; rankCol = i < 3 ? "#d59a00" : "#44546f"; subCol = "#44546f"; }
+      else { nameFont = `${hw} ${Math.round((one ? 50 : 38) * hs)}px ${HF}`; rankFont = `${hw} ${Math.round((one ? 60 : 46) * hs)}px ${HF}`; subFont = `${hw} ${Math.round((one ? 30 : 24) * hs)}px ${HF}`; nameCol = "#25231e"; rankCol = "#b3261e"; subCol = "#5b564a"; }
+      c.fillStyle = rankCol; c.font = rankFont; c.textAlign = "center"; c.fillText(String(i + 1), x + (one ? 46 : 40) + (sty === "card" ? 8 : 0), mid + 2); c.textAlign = "left";
+      c.font = sty === "paper" ? `${hw} ${Math.round(fs * 1.2 * hs)}px ${HF}` : sty === "card" ? `400 ${fs + 8}px ${BEB}` : `800 ${fs}px ${SANS}`;
+      const pfs = sty === "card" ? fs + 8 : sty === "paper" ? Math.round(fs * 1.2 * hs) : fs, pw = c.measureText(pt).width + 26, sw = ab ? c.measureText(ab).width + 26 : 0, tx = x + colW - 18 - pw - (sw ? sw + 10 : 0), nx2 = nx + (sty === "card" ? 12 : 0);
+      c.fillStyle = nameCol; c.font = nameFont; c.fillText(clip(c, it.name, tx - nx2 - 16), nx2, mid + nameDy);
+      if (sub) { c.fillStyle = subCol; c.font = subFont; c.fillText(clip(c, sub, tx - nx2 - 16), nx2, mid + subDy); }
+      const ph = pfs + 14;
+      if (sty === "paper") {
+        c.lineWidth = 3; c.strokeStyle = pc; c.fillStyle = pc + "26"; rr(c, tx, mid - ph / 2, pw, ph, ph / 2); c.fill(); c.stroke(); c.fillStyle = pc; c.font = `${hw} ${pfs}px ${HF}`; c.textAlign = "center"; c.fillText(pt, tx + pw / 2, mid + 2);
+        if (sw) { c.textAlign = "left"; c.font = `${hw} ${pfs}px ${HF}`; c.fillStyle = "#25231e"; c.fillText(ab, tx + pw + 14, mid + 2); c.strokeStyle = sc; c.lineWidth = 4; c.beginPath(); c.moveTo(tx + pw + 12, mid + ph / 2 - 2); c.lineTo(tx + pw + 12 + sw - 10, mid + ph / 2 - 4); c.stroke(); }
+      } else { const f = sty === "card" ? `400 ${pfs}px ${BEB}` : `800 ${pfs}px ${SANS}`; const w1 = pillAt(pt, tx, mid, pfs, pc, inkOn(pc), f); if (sw) pillAt(ab, tx + w1 + 10, mid, pfs, sc, inkOn(sc), f); }
+      c.restore();
     });
-    c.fillStyle = "#e0b23c"; c.font = `800 28px ${F}`; c.textBaseline = "alphabetic"; c.fillText("Razor's Edge", 60, H - 40);
-    c.fillStyle = "#9fb0cc"; c.font = `500 24px ${F}`; c.textAlign = "right"; c.fillText(new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }), W - 60, H - 40);
+    // footer
+    c.textBaseline = "alphabetic"; c.textAlign = "left";
+    if (sty === "dark") { c.fillStyle = "#e0b23c"; c.font = `800 28px ${SANS}`; c.fillText("Razor's Edge", 60, H - 40); c.fillStyle = "#9fb0cc"; c.font = `500 24px ${SANS}`; c.textAlign = "right"; c.fillText(ds, W - 60, H - 40); }
+    else if (sty === "paper") { c.fillStyle = "#b3261e"; c.font = `400 28px ${TYPE}`; c.fillText("Razor's Edge", 80, H - 62); c.fillStyle = "#5b564a"; c.font = `${hw} ${Math.round(34 * hs)}px ${HF}`; c.textAlign = "right"; c.fillText(ds, W - 80, H - 62); }
+    else { c.fillStyle = "#0c1a33"; c.font = `400 36px ${BEB}`; c.fillText("RAZOR'S EDGE", 60, H - 42); c.fillStyle = "#44546f"; c.font = `600 26px ${BAR}`; c.textAlign = "right"; c.fillText(ds, W - 60, H - 42); }
     return cv;
   }
-  function imgBlob(cb) { drawBoard().toBlob(cb, "image/png"); }
+  async function imgBlob(cb) { const cv = await drawBoard(); cv.toBlob(cb, "image/png"); }
+  const makeImg = () => imgBlob((b) => { const fr = new FileReader(); fr.onload = () => { V.simg = fr.result; V.share = true; render(); }; fr.readAsDataURL(b); });
   function renderBoard() {
     const sel = (cur, id, opts) => `<select id="${id}" aria-label="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     let h = `<div class="dr-add"><input id="dr-q" type="text" placeholder="${POOL.length ? "Search a player or school to add" : "Prospect search is off (needs CFBD_API_KEY). Use paste or add by hand."}" autocomplete="off" ${POOL.length ? "" : "disabled"} value="${esc(V.q)}" aria-label="Search prospects"><div id="dr-res" class="dr-res"></div></div>` +
@@ -3300,7 +3343,7 @@ const Sync = (() => {
     for (const { it, n } of rows) {
       if (it.tier && it.tier !== lastTier) h += `<div class="dr-tier">Tier ${esc(it.tier)}</div>`;
       lastTier = it.tier || lastTier;
-      h += `<div class="dr-card${n <= 3 ? " top" : ""}"><div class="dr-rk">${n}</div><div class="dr-main"><div class="dr-nm">${esc(it.name)}</div><div class="dr-meta">${meta(it)}</div>${it.note && !V.edit ? `<div class="dr-nt">“${esc(it.note)}”</div>` : ""}</div>` +
+      h += `<div class="dr-card${n <= 3 ? " top" : ""}" data-dr-open="${esc(it.id)}" tabindex="0" role="button" aria-label="Open ${esc(it.name)}"><div class="dr-rk">${n}</div><div class="dr-main"><div class="dr-nm">${esc(it.name)}</div><div class="dr-meta">${meta(it)}</div>${it.note && !V.edit ? `<div class="dr-nt">“${esc(it.note)}”</div>` : ""}</div>${phys(it) ? `<div class="dr-phys"><b>${esc(fmtHt(it.ht))}</b><span>${it.wt ? it.wt + " lb" : ""}</span></div>` : "<div></div>"}` +
         (V.edit ? `<div class="dr-ctl"><input class="proj-in dr-rank" type="number" min="1" max="${Board.items.length}" inputmode="numeric" value="${n}" data-dr-rank="${esc(it.id)}" aria-label="Rank of ${esc(it.name)}"><select data-dr-tier="${esc(it.id)}" aria-label="Tier"><option value="">No tier</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}" ${String(it.tier) === String(t) ? "selected" : ""}>Tier ${t}</option>`).join("")}</select>` +
         `<input class="proj-in dr-note" type="text" data-dr-note="${esc(it.id)}" value="${esc(it.note)}" placeholder="Note" maxlength="140" aria-label="Note for ${esc(it.name)}">` +
         `<button type="button" class="mini" data-dr-mv="${esc(it.id)}|-1" ${n === 1 ? "disabled" : ""} aria-label="Move up">▲</button><button type="button" class="mini" data-dr-mv="${esc(it.id)}|1" ${n === Board.items.length ? "disabled" : ""} aria-label="Move down">▼</button><button type="button" class="mini" data-dr-del="${esc(it.id)}" aria-label="Remove">✕</button></div>` : "") + `</div>`;
@@ -3334,8 +3377,20 @@ const Sync = (() => {
     const el = $("dr-res"); if (!el) return;
     const toks = norm(V.q).split(" ").filter(Boolean);
     if (!toks.length) { el.innerHTML = ""; return; }
-    const hits = POOL.filter((p) => !onBoard(p.id) && toks.every((t) => p.k.includes(t))).slice(0, 10);
-    el.innerHTML = hits.length ? hits.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span class="dr-hn"><strong>${esc(p.name)}</strong> ${posPill(p.pos)} ${tag(p.team)}${p.cls ? ` <span class="sub" style="margin:0">${CLS[p.cls]}</span>` : ""}</span><span class="sub" style="margin:0">${esc(p.stat)}</span></button>`).join("") : `<p class="notes">No match. Try fewer letters, or add by hand.</p>`;
+    const { hits, fuzzy } = find(V.q);
+    el.innerHTML = (fuzzy && hits.length ? `<p class="notes" style="margin:4px 0">No exact match. Closest names:</p>` : "") + (hits.length ? hits.map((p) => `<button type="button" class="dr-hit" data-dr-add="${esc(p.id)}"><span class="dr-hn"><strong>${esc(p.name)}</strong> ${posPill(p.pos)} ${tag(p.team)}${p.cls ? ` <span class="sub" style="margin:0">${CLS[p.cls]}</span>` : ""}</span><span class="sub" style="margin:0">${[phys(p), p.stat].filter(Boolean).map(esc).join(" · ")}</span></button>`).join("") : `<p class="notes">No match. Try fewer letters, a school name, or add by hand.</p>`);
+  }
+  function lev(a, b) { const m = a.length, n = b.length; let prev = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; } return prev[n]; }
+  // names match with spaces and dots ignored ("CJ" finds "C.J."); if nothing matches, allow a letter or two wrong ("Soresby" finds "Sorsby")
+  function find(q) {
+    const toks = norm(q).split(" ").filter(Boolean); if (!toks.length) return { hits: [], fuzzy: false };
+    const base = POOL.filter((p) => !onBoard(p.id)), joined = toks.join("");
+    const strict = base.filter((p) => p.s.includes(joined) || toks.every((t) => p.k.includes(t) || p.s.includes(t)));
+    if (strict.length) return { hits: strict.slice(0, 10), fuzzy: false };
+    const sc = [];
+    for (const p of base) { let tot = 0; for (const t of toks) { if (p.s.includes(t)) continue; const lim = t.length >= 7 ? 2 : t.length >= 4 ? 1 : 0; let best = 9; for (const w of p.w) if (w.length >= 3) best = Math.min(best, lev(t, w)); if (best > lim) { tot = -1; break; } tot += best; } if (tot >= 0) sc.push([tot, p]); }
+    sc.sort((a, b) => a[0] - b[0]);
+    return { hits: sc.slice(0, 10).map((x) => x[1]), fuzzy: true };
   }
   root.addEventListener("input", (e) => { if (e.target.id === "dr-q") { V.q = e.target.value; results(); } });
   root.addEventListener("change", (e) => {
@@ -3344,7 +3399,10 @@ const Sync = (() => {
     else if (t.id === "dr-bg") { V.bg = t.value; V.bshow = 30; V.browse = true; render(); }
     else if (t.id === "dr-bs") { V.bs = t.value; V.bshow = 30; V.browse = true; render(); }
     else if (t.id === "dr-bsort") { V.bsort = t.value; V.bshow = 30; V.browse = true; render(); }
-    else if (t.id === "dr-ss") { V.ssize = t.value; V.simg = ""; V.share = true; render(); }
+    else if (t.id === "dr-ss") { V.ssize = t.value; V.share = true; if (V.simg) makeImg(); else render(); }
+    else if (t.id === "dr-sty") { V.ssty = t.value; V.share = true; if (V.simg) makeImg(); else render(); }
+    else if (t.id === "dr-sh") { V.shand = t.value; if (V.simg) makeImg(); }
+    else if (t.id === "dr-sp") { V.sphys = t.checked; if (V.simg) makeImg(); }
     else if (t.id === "dr-st") { V.stitle = t.value; V.simg = ""; }
     else if (d.drOwn) { const o = owners(order().slice(0, 32)); if (!Board.owners) Board.owners = {}; Board.owners[d.drOwn] = t.value; Board.save(); render(); }
     else if (d.drRank) { const n = parseInt(t.value, 10); if (Number.isFinite(n)) moveTo(d.drRank, n); render(); }
@@ -3352,7 +3410,41 @@ const Sync = (() => {
     else if (d.drNote !== undefined) { const x = Board.items.find((y) => y.id === d.drNote); if (x) { x.note = t.value.trim(); Board.save(); } }
     else if (d.drSlot !== undefined) { if (t.value) Board.mock[d.drSlot] = t.value; else delete Board.mock[d.drSlot]; Board.save(); render(); }
   });
+  const md = document.createElement("div"); md.className = "modal"; md.hidden = true;
+  md.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-label="Player" tabindex="-1" style="max-width:460px;margin-top:8vh"><button type="button" class="mini modal-x" data-dm="close" aria-label="Close">✕</button><div id="dr-md"></div></div>`;
+  document.body.appendChild(md);
+  function renderDetail() {
+    const i = Board.items.findIndex((x) => x.id === V.open); if (i < 0) { md.hidden = true; return; }
+    const it = Board.items[i], prev = Board.items[i - 1], next = Board.items[i + 1], ord = order().slice(0, 32), own = owners(ord), slot = Object.keys(Board.mock).find((k) => Board.mock[k] === it.id);
+    const nb = (x, lab, dir) => (x ? `<button type="button" class="chip" data-dm-go="${esc(x.id)}">${lab} ${i + 1 + dir}. ${esc(x.name)}</button>` : "");
+    $("dr-md").innerHTML = `<h2 style="margin:0 44px 6px 0">${esc(it.name)}</h2><div class="dr-meta" style="margin:0 0 8px">${posPill(it.pos)} ${tag(it.team)}</div>` +
+      `<div class="stats" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0"><div class="stat"><div class="sub" style="margin:0">Rank</div><strong style="font-size:22px">#${i + 1}</strong></div><div class="stat"><div class="sub" style="margin:0">Height</div><strong style="font-size:22px">${esc(fmtHt(it.ht)) || "–"}</strong></div><div class="stat"><div class="sub" style="margin:0">Weight</div><strong style="font-size:22px">${it.wt ? it.wt + " lb" : "–"}</strong></div></div>` +
+      (it.cls || it.stat ? `<p class="sub" style="margin:4px 0">${[it.cls ? CLS[it.cls] : "", it.stat].filter(Boolean).map(esc).join(" · ")}</p>` : "") +
+      (slot !== undefined ? `<p class="sub" style="margin:4px 0">In your mock draft: pick ${+slot + 1} (${esc(own[ord[+slot].t])})</p>` : "") +
+      `<div class="dr-sheet-row"><label class="sub" style="margin:0">Rank <input class="proj-in" type="number" min="1" max="${Board.items.length}" value="${i + 1}" data-dm-rank style="width:64px"></label><select data-dm-tier aria-label="Tier"><option value="">No tier</option>${[1, 2, 3, 4, 5].map((t) => `<option value="${t}" ${String(it.tier) === String(t) ? "selected" : ""}>Tier ${t}</option>`).join("")}</select></div>` +
+      `<input class="proj-in" type="text" data-dm-note value="${esc(it.note)}" placeholder="Your note on him" maxlength="140" style="width:100%;box-sizing:border-box" aria-label="Note">` +
+      `<div class="dr-sheet-row">${nb(prev, "▲", -1)}${nb(next, "▼", 1)}</div><div class="dr-sheet-row"><button type="button" class="chip" data-dm="del">Remove from board</button></div>`;
+  }
+  function openDetail(id) { V.open = id; renderDetail(); md.hidden = false; md.querySelector(".modal-card").focus(); }
+  md.addEventListener("click", (e) => {
+    if (e.target === md) { md.hidden = true; return; }
+    const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
+    if (d.dm === "close") md.hidden = true;
+    else if (d.dm === "del") { const i = Board.items.findIndex((x) => x.id === V.open); if (i >= 0) { Board.items.splice(i, 1); Board.save(); } md.hidden = true; render(); }
+    else if (d.dmGo) { V.open = d.dmGo; renderDetail(); }
+  });
+  md.addEventListener("change", (e) => {
+    const t = e.target, x = Board.items.find((y) => y.id === V.open); if (!x) return;
+    if (t.dataset.dmRank !== undefined) { const n = parseInt(t.value, 10); if (Number.isFinite(n)) moveTo(x.id, n); }
+    else if (t.dataset.dmTier !== undefined) { x.tier = t.value; Board.save(); }
+    else if (t.dataset.dmNote !== undefined) { x.note = t.value.trim(); Board.save(); }
+    render(); renderDetail();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !md.hidden) md.hidden = true; });
+  root.addEventListener("keydown", (e) => { const c = e.target.closest && e.target.closest("[data-dr-open]"); if (c && e.target === c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openDetail(c.dataset.drOpen); } });
   root.addEventListener("click", (e) => {
+    const card = e.target.closest("[data-dr-open]");
+    if (card && !e.target.closest("button, input, select, textarea, .dr-ctl")) { openDetail(card.dataset.drOpen); return; }
     const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
     if (d.drMode) { V.mode = d.drMode; V.note = ""; render(); }
     else if (d.drAdd) { const p = POOL.find((x) => x.id === d.drAdd); if (p) { addPlayers([p]); V.q = ""; V.note = `Added ${p.name} at #${Board.items.length}.`; render(); } }
@@ -3364,7 +3456,7 @@ const Sync = (() => {
     else if (d.dr === "more") { V.bshow += 30; V.browse = true; render(); }
     else if (d.dr === "trades") { V.trades = !V.trades; render(); }
     else if (d.dr === "resettr") { Board.owners = {}; Board.save(); render(); }
-    else if (d.dr === "img") { V.stitle = ($("dr-st") && $("dr-st").value) || V.stitle; V.share = true; imgBlob((b) => { const fr = new FileReader(); fr.onload = () => { V.simg = fr.result; render(); }; fr.readAsDataURL(b); }); }
+    else if (d.dr === "img") { V.stitle = ($("dr-st") && $("dr-st").value) || V.stitle; makeImg(); }
     else if (d.dr === "dlimg") { const a = document.createElement("a"); a.href = V.simg; a.download = "big-board.png"; document.body.appendChild(a); a.click(); a.remove(); }
     else if (d.dr === "shareimg") { imgBlob(async (b) => { const f = new File([b], "big-board.png", { type: "image/png" }); try { if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f], title: V.stitle }); else { V.note = "Sharing isn't available in this browser. Use Save image instead."; render(); } } catch (e) { /* cancelled */ } }); }
     else if (d.dr === "auto") { const used = new Set(Object.values(Board.mock)); const free = Board.items.filter((x) => !used.has(x.id)); for (let i = 0; i < 32 && free.length; i++) if (!Board.mock[i]) Board.mock[i] = free.shift().id; Board.save(); render(); }
