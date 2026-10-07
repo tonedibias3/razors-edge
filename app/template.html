@@ -82,7 +82,7 @@ body { background: var(--page); color: var(--ink); font-family: var(--font-body)
 button, input { font-family: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-.wrap { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; display: flex; flex-direction: column; gap: 18px; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 100px; display: flex; flex-direction: column; gap: 18px; }
 h1 { margin: 0; font: 700 30px/1 var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; }
 h2 { margin: 0; font: 600 22px/1.1 var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; }
 .src { margin: 6px 0 0; color: var(--ink2); font-size: 14px; }
@@ -119,7 +119,7 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 #l-table .sub.mv { font-size: 10px; margin-top: 0; opacity: .85; white-space: nowrap; }
 .stp { display: inline-flex; align-items: center; gap: 4px; }
 .stp .mini { height: 30px; width: 30px; padding: 0; }
-#re-toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 80; max-width: 90vw; text-align: center; }
+#re-toast { position: fixed; left: 50%; bottom: 88px; transform: translate(-50%, 20px); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 12px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 80; max-width: 90vw; text-align: center; }
 #re-toast.on { opacity: 1; transform: translate(-50%, 0); }
 .lbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 8px; margin: 0 0 12px; }
 .lbar .lf { display: block; min-width: 0; }
@@ -304,7 +304,7 @@ input[type="file"] { font-size: 14px; max-width: 100%; }
 /* Razor's Edge look: one green accent for chrome; blue and orange stay reserved for results */
 h1 span { color: var(--accent); }
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 2px solid var(--accent); }
-#st-btn { height: 36px; font-size: 13px; white-space: nowrap; }
+#st-btn { height: 36px; font-size: 13px; white-space: nowrap; display: none; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .panel-head h2, details summary { border-left: 4px solid var(--accent); padding-left: 10px; }
 th .linkbtn[aria-pressed="true"] { border-bottom-color: var(--accent); }
@@ -435,6 +435,15 @@ html[data-hand="kalam"] { --hand: "Kalam", "Segoe Print", cursive; }
 .dr-pick { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
 .dr-pick select { flex: 1; min-width: 0; }
 .dr-pn { width: 26px; text-align: right; font-weight: 700; }
+
+/* Bottom bar */
+.botbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; justify-content: center; background: var(--surface); border-top: 1px solid var(--axis); padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 14px rgba(0,0,0,.18); }
+.botbar button { flex: 1 1 0; max-width: 150px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px 5px; background: transparent; color: var(--muted); border: 0; border-radius: 10px; cursor: pointer; font: inherit; font-size: 11px; letter-spacing: .02em; text-transform: none; }
+.botbar button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.botbar button.on { color: var(--accent); font-weight: 700; }
+.botbar button:hover { background: var(--hover); }
+.hm-grp { margin: 14px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hm-barset { display: flex; flex-direction: column; gap: 8px; }
 /* Paper look */
 html[data-look="paper"][data-theme] { color-scheme: light; --page: #ece3cb; --surface: #fbf6e6; --ink: #25231e; --ink2: #5b564a; --muted: #8b8572; --grid: #ddd2b4; --axis: #bfb393; --border: rgba(70,55,25,.24); --hover: rgba(70,55,25,.08); --shadow: 0 2px 0 rgba(70,55,25,.2);
   --over: #2f62a3; --under: #c0592b; --push: #8b8572; --accent: #2f6b3d; --accent-ink: #fbf6e6; --accent-soft: rgba(47,107,61,.13); --star: #a87a00; --warn: #a15c00; --bad: #b3261e;
@@ -820,6 +829,7 @@ html[data-look="card"] .slip .chip[aria-pressed="true"] { background: var(--acce
     <p class="notes" id="p-notes">Opp rank shows how the defense has done against that position over its last 8 games, the way ESPN and DraftKings show it: 32nd (green) allowed the most points, an easy matchup, and 1st (red) allowed the fewest. The number under it is the points per game above or below the league average. How the projection works: it starts from each player's recent DraftKings scoring (weighted toward his latest games), then adjusts for how he is used, how the opponent has defended his position, and how many points his team is expected to score. Moves up from a good matchup are shrunk by half because they did not hold up in testing, while cuts for players running hot were reliable. Floor and ceiling are the range real scores landed in 60% of the time in the test. Typical miss is about 5 points per player, so treat the numbers as a ranking aid. “Basic” means a short history or low usage, so the number is just a discounted recent average, and defenses use a simple rule based on the opponent&rsquo;s expected score. Injuries come only from the Status column in your file: players listed OUT, IR or doubtful get no projection. You can type your own projection into any box, for example when a backup is starting.</p>
   </div>
 </main>
+<nav class="botbar" id="botbar" aria-label="Main sections"></nav>
 <div class="modal" id="p-modal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="pm-title" tabindex="-1">
     <button type="button" class="mini modal-x" id="pm-close" aria-label="Close">✕</button>
@@ -3158,11 +3168,15 @@ const Board = (() => {
   const $ = (id) => document.getElementById(id), root = $("hm-root");
   const esc = (x) => String(x == null ? "" : x).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const KEY = "re-home-v1";
-  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease"], ["teams", "Teams", "Offense and defense rankings", "tab-teams"], ["players", "Players", "Prop hit rates by player", "tab-players"], ["def", "Defenses", "Hit rates by defense", "tab-def"], ["top", "Top hit rates", "Best props right now", "tab-top"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj"], ["bets", "Bets", "Track real and practice bets", "tab-bets"], ["draft", "Draft", "Your big board and mock draft", "tab-draft"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn"]];
+  const GROUPS = [["bet", "Betting"], ["res", "Research"], ["fan", "Fantasy and draft"]];
+  const TILES = [["tease", "Lines & teasers", "Spreads, totals, teaser builder", "tab-tease", "bet"], ["bets", "Bets", "Track real and practice bets", "tab-bets", "bet"], ["saved", "Saved", "Props, picks, lineups, teasers", "sv-btn", "bet"], ["teams", "Teams", "Offense and defense rankings", "tab-teams", "res"], ["players", "Players", "Prop hit rates by player", "tab-players", "res"], ["def", "Defenses", "Hit rates by defense", "tab-def", "res"], ["top", "Top hit rates", "Best props right now", "tab-top", "res"], ["proj", "DFS", "DraftKings lineup builder", "tab-proj", "fan"], ["draft", "Draft", "Your big board and mock draft", "tab-draft", "fan"]];
+  const SHORT = { tease: "Lines", top: "Hit rates" };
+  const ICO = { home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>', tease: '<path d="M4 6h16M4 12h16M4 18h10"/>', teams: '<path d="M5 20V11M12 20V4M19 20v-6"/>', players: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', def: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>', top: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>', proj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5c0-1.5 5-1.5 5 .5s-5 2-5 4 5 2 5 .5"/>', bets: '<path d="M4 4h16v16l-3-2-3 2-3-2-3 2-4-2z"/><path d="M8 9h8M8 13h5"/>', draft: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h6"/>', saved: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>', settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>' };
+  const ico = (n) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n] || ""}</svg>`;
   const CARDS = [["up", "Upcoming games"], ["moves", "Line moves"], ["bets", "Open bets"], ["tease", "Teaser candidates"], ["draft", "My draft board"]];
   const DEFAULT = [...TILES.map((t) => "t:" + t[0]), ...CARDS.map((c) => "c:" + c[0])];
-  let L = { order: DEFAULT.slice(), hidden: [] }, editing = false;
-  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r && Array.isArray(r.order)) { L.order = r.order.filter((k) => DEFAULT.includes(k)); L.hidden = (r.hidden || []).filter((k) => DEFAULT.includes(k)); } } catch (e) { /* storage not available */ }
+  let L = { order: DEFAULT.slice(), hidden: [], bar: ["tease", "teams", "proj"] }, editing = false;
+  try { const r = JSON.parse(localStorage.getItem(KEY) || "null"); if (r && Array.isArray(r.order)) { L.order = r.order.filter((k) => DEFAULT.includes(k)); L.hidden = (r.hidden || []).filter((k) => DEFAULT.includes(k)); if (Array.isArray(r.bar) && r.bar.length === 3 && r.bar.every((k) => TILES.some((t) => t[0] === k))) L.bar = r.bar; } } catch (e) { /* storage not available */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) { /* storage not available */ } };
   const sync = () => { for (const k of DEFAULT) if (!L.order.includes(k)) L.order.push(k); };
   const lgNow = () => (RE.lg === "cfb" && COL ? "cfb" : "nfl");
@@ -3231,12 +3245,15 @@ const Board = (() => {
     const tileOf = (k) => TILES.find((t) => "t:" + t[0] === k);
     const shown = (k) => { const t = tileOf(k); if (!t) return true; const el = $(t[3]); return !(el && el.hidden && t[3] !== "sv-btn"); };
     const ctl = (k, i, n, vert) => editing ? `<span class="hm-ctl"><button type="button" class="mini" data-hm-mv="${k}|-1" ${i === 0 ? "disabled" : ""} aria-label="Move earlier">${vert ? "▲" : "◀"}</button><button type="button" class="mini" data-hm-mv="${k}|1" ${i === n - 1 ? "disabled" : ""} aria-label="Move later">${vert ? "▼" : "▶"}</button><button type="button" class="mini" data-hm-hide="${k}" aria-label="Hide">✕ Hide</button></span>` : "";
-    const tiles = tilesVis.filter((k) => (editing ? shown(k) : ok(k) && shown(k)));
-    const vis = tiles.filter(ok);
-    let h = `<div class="hm-tiles">` + tiles.filter((k) => editing || ok(k)).map((k) => {
-      const t = tileOf(k), i = vis.indexOf(k), hid = !ok(k);
-      return `<div class="hm-tile${hid ? " off" : ""}">${hid ? "" : ""}<button type="button" class="hm-go" data-hm-go="${t[3]}" ${editing ? "tabindex=-1" : ""}><span class="hm-t">${esc(t[1])}</span><span class="sub" style="margin:0">${esc(t[2])}</span></button>${hid ? `<button type="button" class="mini" data-hm-show="${k}">+ Show</button>` : ctl(k, i, vis.length, false)}</div>`;
-    }).join("") + `</div>`;
+    let h = editing ? `<section class="panel hm-card"><div class="panel-head"><h2>Bottom bar</h2></div><p class="notes" style="margin-top:0">Home and Settings stay put. Pick what goes in the three slots between them.</p><div class="hm-barset">${[0, 1, 2].map((i) => `<select data-hm-bar="${i}" aria-label="Bottom bar slot ${i + 1}">${TILES.map((t) => `<option value="${t[0]}" ${L.bar[i] === t[0] ? "selected" : ""}>${esc(t[1])}</option>`).join("")}</select>`).join("")}</div></section>` : "";
+    for (const [gid, gname] of GROUPS) {
+      const items = tilesVis.filter((k) => tileOf(k)[4] === gid && shown(k) && (editing || ok(k))), vis = items.filter(ok);
+      if (!items.length) continue;
+      h += `<h3 class="hm-grp">${esc(gname)}</h3><div class="hm-tiles">` + items.map((k) => {
+        const t = tileOf(k), i = vis.indexOf(k), hid = !ok(k);
+        return `<div class="hm-tile${hid ? " off" : ""}"><button type="button" class="hm-go" data-hm-go="${t[3]}" ${editing ? "tabindex=-1" : ""}><span class="hm-t">${esc(t[1])}</span><span class="sub" style="margin:0">${esc(t[2])}</span></button>${hid ? `<button type="button" class="mini" data-hm-show="${k}">+ Show</button>` : ctl(k, i, vis.length, false)}</div>`;
+      }).join("") + `</div>`;
+    }
     const cards = L.order.filter((k) => k[0] === "c" && CARDS.some((x) => "c:" + x[0] === k)), cv = cards.filter(ok);
     for (const k of cards) {
       const [id, title] = CARDS.find((x) => "c:" + x[0] === k), hid = !ok(k);
@@ -3248,13 +3265,22 @@ const Board = (() => {
     root.innerHTML = h;
     $("hm-edit").setAttribute("aria-pressed", String(editing)); $("hm-edit").textContent = editing ? "✓ Done" : "✎ Edit layout";
   }
+  function renderBar() {
+    const nav = $("botbar"); if (!nav) return;
+    const cur = document.querySelector('.tabs [aria-selected="true"]'), curId = cur ? cur.id : "";
+    const items = [["home", "Home", "tab-home"], ...L.bar.map((k) => { const t = TILES.find((x) => x[0] === k); return [k, SHORT[k] || t[1], t[3]]; }), ["settings", "Settings", "st-btn"]];
+    nav.innerHTML = items.filter(([, , id]) => { const el = $(id); return !(el && el.hidden && id !== "st-btn" && id !== "sv-btn"); }).map(([k, l, id]) => `<button type="button" data-bar="${id}" class="${curId === id ? "on" : ""}" ${curId === id ? 'aria-current="page"' : ""} aria-label="${esc(l)}">${ico(k)}<span>${esc(l)}</span></button>`).join("");
+  }
+  $("botbar").addEventListener("click", (e) => { const b = e.target.closest("button[data-bar]"); if (!b) return; go(b.dataset.bar); if (b.dataset.bar !== "st-btn" && b.dataset.bar !== "sv-btn") window.scrollTo(0, 0); });
+  new MutationObserver(renderBar).observe(document.querySelector(".tabs"), { attributes: true, attributeFilter: ["aria-selected", "hidden"], subtree: true });
+  root.addEventListener("change", (e) => { const t = e.target; if (t.dataset.hmBar === undefined) return; const i = +t.dataset.hmBar, v = t.value, j = L.bar.indexOf(v); if (j >= 0 && j !== i) L.bar[j] = L.bar[i]; L.bar[i] = v; save(); renderBar(); render(); });
   $("hm-edit").addEventListener("click", () => { editing = !editing; render(); });
   root.addEventListener("click", (e) => {
     const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
     if (d.hmGo) { if (editing) return; go(d.hmGo); }
     else if (d.hmGame) { const [wk, lg] = d.hmGame.split("|"); if (RE.showLines) RE.showLines(+wk, lg); go("tab-tease"); }
     else if (d.hmMv) {
-      const [k, dir] = d.hmMv.split("|"), vis = L.order.filter((x) => x[0] === k[0] && !L.hidden.includes(x)), i = vis.indexOf(k), j = i + +dir;
+      const [k, dir] = d.hmMv.split("|"), gOf = (x) => { const t = TILES.find((y) => "t:" + y[0] === x); return t ? t[4] : "c"; }, vis = L.order.filter((x) => x[0] === k[0] && gOf(x) === gOf(k) && !L.hidden.includes(x) && (x[0] !== "t" || !((el) => el && el.hidden && el.id !== "sv-btn")($(TILES.find((y) => "t:" + y[0] === x)[3])))), i = vis.indexOf(k), j = i + +dir;
       if (j >= 0 && j < vis.length) { const a = L.order.indexOf(vis[i]), b = L.order.indexOf(vis[j]); [L.order[a], L.order[b]] = [L.order[b], L.order[a]]; save(); render(); }
     }
     else if (d.hmHide) { L.hidden.push(d.hmHide); save(); render(); }
@@ -3262,8 +3288,8 @@ const Board = (() => {
   });
   $("tab-home").addEventListener("click", render);
   Saved.on(() => { if (!$("view-home").hidden) render(); });
-  RE.homeRender = render;
-  render();
+  RE.homeRender = () => { render(); renderBar(); };
+  render(); renderBar();
 })();
 
 // ---------- League switch: NFL or College (lines and teasers only) ----------
@@ -3310,7 +3336,6 @@ const Board = (() => {
     const lgb = [...document.querySelectorAll("#lg-sw button[data-lg]")];
     if (!$("lg-sw").hidden && lgb.length) h += sel("tb-lg", "League", lgb.map((b) => [b.dataset.lg, b.textContent]), (lgb.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.lg);
     const tb = [...document.querySelectorAll(".tabs button")].filter((b) => !b.hidden);
-    h += sel("tb-view", "View", tb.map((b) => [b.id, b.textContent]), (tb.find((b) => b.getAttribute("aria-selected") === "true") || {}).id);
     if (bar.dataset.h !== h) { bar.dataset.h = h; bar.innerHTML = h; }
   }
   bar.addEventListener("change", (e) => {
