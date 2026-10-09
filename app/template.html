@@ -2627,7 +2627,7 @@ const Sync = (() => {
       `<div class="stat"><span class="k">Floor</span><span class="v">${f1(fl)}</span></div>`;
     const rows = slots.map((s) => s.p
       ? `<tr class="${S.locks.has(s.p.id) ? "locked" : ""}"><td>${s.slot}</td><td>${lockBtn(s.p)}<button type="button" class="linkbtn" data-detail="${esc(s.p.id)}"><strong>${esc(s.p.name)}</strong></button>${sflag(s.p.status)}<span class="sub">${teamPill(s.p.team)}</span></td><td class="gm">${esc(s.p.game || "")}</td><td class="num">${money(s.p.salary)}</td><td class="num">${f1(s.p.proj)}</td><td class="num fl">${f1(s.p.floor)}</td><td class="num fl">${oprkCell(s.p.oprk)}</td><td><button type="button" class="mini" data-rm="${esc(s.p.id)}" aria-label="Remove ${esc(s.p.name)}"><span class="long">Remove</span><span class="short">✕</span></button></td></tr>`
-      : `<tr class="empty-slot"><td>${s.slot}</td><td colspan="6">Open. Press Add on a player below.</td><td></td></tr>`).join("");
+      : `<tr class="empty-slot"><td>${s.slot}</td><td colspan="6" class="sub" style="margin:0">Open</td><td><button type="button" class="mini" data-slotadd="${s.slot}">+ Add</button></td></tr>`).join("");
     const gm = new Map(), tm = new Map();
     for (const p of ps) { gm.set(p.game || p.team, (gm.get(p.game || p.team) || 0) + 1); if (p.pos !== "DST") tm.set(p.team, (tm.get(p.team) || 0) + 1); }
     const R = S.rules, warn = [];
@@ -2768,7 +2768,7 @@ const Sync = (() => {
     }
     S.locks.add(id);
   }
-  $("p-body").addEventListener("click", (e) => { const b = e.target.closest("button[data-rm]"), l = e.target.closest("button[data-lock]"), dt = e.target.closest("button[data-detail]"); if (dt) { openDetail(dt.dataset.detail); } else if (b) { rm(b.dataset.rm); render(); } else if (l) { toggleLock(l.dataset.lock); render(); } });
+  $("p-body").addEventListener("click", (e) => { const b = e.target.closest("button[data-rm]"), l = e.target.closest("button[data-lock]"), dt = e.target.closest("button[data-detail]"), sa = e.target.closest("button[data-slotadd]"); if (sa) { const sl = sa.dataset.slotadd; S.pos = sl === "FLEX" || sl === "DST" || sl === "QB" || sl === "TE" ? sl : sl; render(); el.pos.style.scrollMarginTop = "90px"; el.pos.scrollIntoView({ behavior: "smooth", block: "start" }); } else if (dt) { openDetail(dt.dataset.detail); } else if (b) { rm(b.dataset.rm); render(); } else if (l) { toggleLock(l.dataset.lock); render(); } });
   el.table.addEventListener("click", (e) => {
     const dt = e.target.closest("button[data-detail]");
     if (dt) { openDetail(dt.dataset.detail); return; }
