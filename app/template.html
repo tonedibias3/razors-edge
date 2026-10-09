@@ -327,6 +327,8 @@ h1 span { color: var(--accent); }
 .panel-head h2, details summary { border-left: 4px solid var(--accent); padding-left: 10px; }
 th .linkbtn[aria-pressed="true"] { border-bottom-color: var(--accent); }
 .star[aria-pressed="true"] { color: var(--star); }
+.slotadd { background: var(--accent); color: #fff; border: 0; border-radius: 999px; padding: 7px 16px; font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.slotadd:active { transform: scale(.96); }
 .mini[data-add]:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .flag-q { color: var(--warn); border-color: var(--warn); }
 .flag-out { color: var(--bad); border-color: var(--bad); }
@@ -2627,7 +2629,7 @@ const Sync = (() => {
       `<div class="stat"><span class="k">Floor</span><span class="v">${f1(fl)}</span></div>`;
     const rows = slots.map((s) => s.p
       ? `<tr class="${S.locks.has(s.p.id) ? "locked" : ""}"><td>${s.slot}</td><td>${lockBtn(s.p)}<button type="button" class="linkbtn" data-detail="${esc(s.p.id)}"><strong>${esc(s.p.name)}</strong></button>${sflag(s.p.status)}<span class="sub">${teamPill(s.p.team)}</span></td><td class="gm">${esc(s.p.game || "")}</td><td class="num">${money(s.p.salary)}</td><td class="num">${f1(s.p.proj)}</td><td class="num fl">${f1(s.p.floor)}</td><td class="num fl">${oprkCell(s.p.oprk)}</td><td><button type="button" class="mini" data-rm="${esc(s.p.id)}" aria-label="Remove ${esc(s.p.name)}"><span class="long">Remove</span><span class="short">✕</span></button></td></tr>`
-      : `<tr class="empty-slot"><td>${s.slot}</td><td colspan="6" class="sub" style="margin:0">Open</td><td><button type="button" class="mini" data-slotadd="${s.slot}">+ Add</button></td></tr>`).join("");
+      : `<tr class="empty-slot"><td>${s.slot}</td><td colspan="6"><button type="button" class="slotadd" data-slotadd="${s.slot}">+ Add ${s.slot}</button></td><td></td></tr>`).join("");
     const gm = new Map(), tm = new Map();
     for (const p of ps) { gm.set(p.game || p.team, (gm.get(p.game || p.team) || 0) + 1); if (p.pos !== "DST") tm.set(p.team, (tm.get(p.team) || 0) + 1); }
     const R = S.rules, warn = [];
