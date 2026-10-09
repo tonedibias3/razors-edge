@@ -121,6 +121,9 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 #z-mode .chip:first-child { border-radius: 12px 0 0 12px; }
 #z-mode .chip:last-child { border-radius: 0 12px 12px 0; border-left-width: 0; }
 #top-bar { margin: 4px 0 12px; }
+.lgseg { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); }
+.lgseg button { flex: 1; height: 38px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.lgseg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
 .lbar .lf.games { grid-column: 1 / -1; order: -1; }
 .fscore { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.2; }
 .fscore.lose { color: var(--ink2); font-weight: 500; }
@@ -3820,10 +3823,15 @@ const Sync = (() => {
   function sync() {
     let h = "";
     const lgb = [...document.querySelectorAll("#lg-sw button[data-lg]")];
-    if (!$("lg-sw").hidden && lgb.length) h += sel("tb-lg", "League", lgb.map((b) => [b.dataset.lg, b.textContent]), (lgb.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.lg);
+    if (!$("lg-sw").hidden && lgb.length) { const cur = (lgb.find((b) => b.getAttribute("aria-pressed") === "true") || {}).dataset?.lg; h += `<div class="lf wide"><span class="lbl">League</span><div class="lgseg" role="group" aria-label="League">${lgb.map((b) => `<button type="button" data-tblg="${esc(b.dataset.lg)}" aria-pressed="${b.dataset.lg === cur}">${esc(b.textContent)}</button>`).join("")}</div></div>`; }
     const tb = [...document.querySelectorAll(".tabs button")].filter((b) => !b.hidden);
     if (bar.dataset.h !== h) { bar.dataset.h = h; bar.innerHTML = h; }
   }
+  bar.addEventListener("click", (e) => {
+    const t = e.target.closest("button[data-tblg]"); if (!t) return;
+    const b = document.querySelector(`#lg-sw button[data-lg="${t.dataset.tblg}"]`); if (b) b.click();
+    setTimeout(sync, 0);
+  });
   bar.addEventListener("change", (e) => {
     const v = e.target.value;
     if (e.target.id === "tb-lg") { const b = document.querySelector(`#lg-sw button[data-lg="${v}"]`); if (b) b.click(); }
