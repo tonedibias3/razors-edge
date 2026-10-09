@@ -3303,7 +3303,7 @@ const Sync = (() => {
     return `<div class="svc"><input class="svname" type="text" data-bf="name|${b.id}" value="${esc(b.name || "")}" maxlength="70" aria-label="Bet name">` +
       `<div class="sub" style="margin:0">${esc(b.sport || "")} · ${tname(b.type)} · ${esc(b.book || "")}${b.book ? " · " : ""}${esc(dateOf(b))}${b.legs && b.legs.length ? " · " + b.legs.length + " legs" : ""}${b.type === "teaser" && b.pts ? " · " + b.pts + " pts" : ""}</div>` +
       `<div style="margin-top:6px"><span class="res ${resCls}">${txt}${auto ? " (from scores)" : ""}</span> ` + (pr !== null && o !== "pending" ? `<strong class="${pr > 0 ? "pos" : pr < 0 ? "neg" : ""}">${ms(pr)}</strong>` : o !== "pending" ? `<span class="sub" style="margin:0">add the stake to see profit</span>` : "") + `</div>` +
-      `<div class="svedit"><label>Stake $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="stake|${b.id}" value="${b.stake === null || b.stake === undefined ? "" : b.stake}"></label><label>Odds <input class="proj-in" type="text" inputmode="numeric" data-bf="odds|${b.id}" value="${odd(b.odds)}" placeholder="+400"></label><label>To win $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="toWin|${b.id}" value="${b.toWin === null || b.toWin === undefined ? "" : b.toWin}"></label></div>` +
+      `<div class="svedit"><label>Stake $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="stake|${b.id}" value="${b.stake === null || b.stake === undefined ? "" : b.stake}"></label><label>Odds <input class="proj-in" type="text" inputmode="numeric" data-bf="odds|${b.id}" value="${odd(b.odds)}" placeholder="+400"></label><label>To win $ <input class="proj-in" type="number" step="0.01" inputmode="decimal" data-bf="toWin|${b.id}" value="${b.toWin === null || b.toWin === undefined ? (b.stake && b.odds ? Math.round(b.stake * oddsProfit(b.odds) * 100) / 100 : "") : b.toWin}" placeholder="auto"></label></div>` +
       `<div class="chips" style="margin-top:8px">` + [...(b.type === "teaser" && b.legs && b.legs.length && typeof b.legs[0] === "object" ? [["auto", "Auto"]] : []), ["pending", "Open"], ["won", "Won"], ["lost", "Lost"], ["push", "Push"]].map(([k, l]) => `<button type="button" class="mini" data-bres="${k}|${b.id}" aria-pressed="${(b.result || "pending") === k}">${l}</button>`).join("") +
       `<button type="button" class="mini" data-breal="${b.id}" aria-pressed="${!!b.real}">${b.real ? "Real money" : "Practice"}</button></div>` +
       (b.legs && b.legs.length ? `<details open><summary>Legs</summary><ul class="svlegs">${b.legs.map((l, i) => [l, i]).sort((p, q) => kickKey(typeof p[0] === "object" && RE.legGame ? RE.legGame(b, p[0]) : null).localeCompare(kickKey(typeof q[0] === "object" && RE.legGame ? RE.legGame(b, q[0]) : null)) || p[1] - q[1]).map(([l]) => `<li class="lgrow">${legText(l, b.pts || 0, b)}</li>`).join("")}</ul></details>` : "") +
@@ -3331,7 +3331,14 @@ const Sync = (() => {
     const t = e.target, f = t.dataset.bf; if (!f) return;
     const [k, id] = f.split("|");
     if (k === "name") { if (t.value.trim()) Saved.update("bets", id, { name: t.value.trim() }); }
-    else if (k === "odds") Saved.update("bets", id, { odds: parseAmerican(t.value) });
+    else if (k === "odds" || k === "stake") {
+      const cur = Saved.data.bets.find((x) => x.id === id) || {};
+      const auto = (c) => c.stake && c.odds ? Math.round(c.stake * oddsProfit(c.odds) * 100) / 100 : null;
+      const nv = k === "odds" ? parseAmerican(t.value) : (Number.isFinite(parseFloat(t.value)) ? parseFloat(t.value) : null);
+      const patch = { [k]: nv };
+      if (cur.toWin == null || cur.toWin === auto(cur)) patch.toWin = null;
+      Saved.update("bets", id, patch);
+    }
     else { const v = parseFloat(t.value); Saved.update("bets", id, { [k]: Number.isFinite(v) ? v : null }); }
   });
   Saved.on(() => { V.note = V.note === "Saved." ? "Saved." : ""; if (!$("view-bets").hidden || true) render(); });
