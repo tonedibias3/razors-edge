@@ -376,6 +376,9 @@ tr.mine td { background: var(--accent-soft); }
 .parlay .stats { margin: 8px 0; }
 .dr-foot { margin-top: 18px; }
 tr.grp td { background: var(--accent-soft); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 6px 10px; }
+.slp { display: inline-block; font: 700 10px/1 var(--font-body); letter-spacing: .04em; text-transform: uppercase; padding: 3px 5px; margin-bottom: 3px; border-radius: 5px; background: var(--accent); color: #fff; white-space: nowrap; }
+#l-table td.insl { box-shadow: inset 0 0 0 2px var(--accent); }
+#l-table .mini.ins { background: var(--accent); color: #fff; border-color: var(--accent); }
 .cellbtn { display: block; width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: right; cursor: pointer; padding: 0; }
 .cellbtn[aria-pressed="true"] strong::before { content: "★ "; color: var(--star); }
 .ou { display: flex; justify-content: flex-end; gap: 4px; margin-top: 4px; }
@@ -2126,7 +2129,8 @@ const Sync = (() => {
     const teamBtn = (t) => `<button type="button" class="tmpill" data-team="${esc(t)}" aria-label="Open ${esc(t)} trends">${rkOf(t) ? `<span class="rk">#${rkOf(t)}</span>` : ""}${tp(t)}</button>${recOf(t).n ? `<span class="rec" title="${isC() ? "Overall record (conference record)" : "Record this season"}">${recOf(t).txt}${isC() ? ` (${recOf(t).conf})` : ""}</span>` : ""}`;
     const cell = (g, team) => {
       const line = sideLine(g, team), st = stat(line, 0), res = g[5] === null ? null : g[4] === team ? g[5] : -g[5], on = picked(g, "spread", team);
-      return `<td class="num"${covBg(st.cover)}><button type="button" class="cellbtn" data-pick="${esc(g[3])}|${esc(g[4])}|spread|${esc(team)}" aria-pressed="${on}" aria-label="${on ? "Remove" : "Save"} ${esc(team)} ${spr(line)}"><strong>${spr(line)}</strong></button>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>${(() => { const o = openOf(g); if (!o || g[5] !== null) return ""; const was = g[4] === team ? -o[1] : o[1]; return was !== line ? `<span class="sub mv">was ${spr(was)}</span>` : ""; })()}`}</td>`;
+      const ins = S.legs.some((l) => l.team === team && l.week === g[1] && lt(l) === "spread");
+      return `<td class="num${ins ? " insl" : ""}"${covBg(st.cover)}>${ins ? '<span class="slp">✓ In teaser</span>' : ""}<button type="button" class="cellbtn" data-pick="${esc(g[3])}|${esc(g[4])}|spread|${esc(team)}" aria-pressed="${on}" aria-label="${on ? "Remove" : "Save"} ${esc(team)} ${spr(line)}"><strong>${spr(line)}</strong></button>${resultCell(res, line, 0) ? `<span class="sub">${resultCell(res, line, 0)}</span>` : `<span class="sub">${pct(st.cover)}</span>${(() => { const o = openOf(g); if (!o || g[5] !== null) return ""; const was = g[4] === team ? -o[1] : o[1]; return was !== line ? `<span class="sub mv">was ${spr(was)}</span>` : ""; })()}`}</td>`;
     };
     const lsh = (k, label) => `<button type="button" class="linkbtn" data-ls="${k}" aria-pressed="${S.ls === k}" title="Click to sort, click again to flip">${label}${lsArrow(k)}</button>`;
     let html = `<thead><tr><th>Road</th><th class="num">${lsh("spread", "Spread")}</th><th class="num">${lsh("spread", "Spread")}</th><th>Home</th><th class="num">${lsh("total", "Total")}</th></tr></thead><tbody>`, last = "";
@@ -2134,7 +2138,7 @@ const Sync = (() => {
       const gk = g[2] + "|" + (g[10] || "");
       if (S.ls === "time" && gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
-      const ou = (t) => `<button type="button" class="mini" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
+      const ou = (t) => `<button type="button" class="mini${S.legs.some((l) => l.week === g[1] && l.team === g[4] && lt(l) === t) ? " ins" : ""}" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
       html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
         `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou mu"><button type="button" class="mini" data-mu="${esc(g[3])}|${esc(g[4])}|${g[1]}" title="Compare both teams' offense and defense" aria-label="Team stats matchup">Stats</button></span><span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
@@ -2205,14 +2209,14 @@ const Sync = (() => {
     else if (k === "tease") {
       const i = S.legs.findIndex((l) => l.team === team && l.week === g[1] && lt(l) === "spread");
       if (i >= 0) { S.legs.splice(i, 1); S.msg = ""; } else { S.msg = ""; addLeg(team, g[1], sideLine(g, team)); }
-      openAct(g, team);
+      openAct(g, team); if (S.mode === "lines") renderLines();
     }
     else if (k === "tover" || k === "tunder") { const v = parseFloat($("ac-tt").value); if (Number.isFinite(v)) { actTT = v; Saved.togglePick(pickObj(g, k, team, v)); } openAct(g, team); }
     else if (k.startsWith("tt-")) {
       const ty = k.slice(3), tm = isTeamTot(ty) ? team : g[4], i = S.legs.findIndex((l) => l.week === g[1] && lt(l) === ty && l.team === tm);
       if (i >= 0) { S.legs.splice(i, 1); S.msg = ""; }
       else { const v = isTeamTot(ty) ? parseFloat($("ac-tt").value) : g[7]; if (Number.isFinite(v)) { if (isTeamTot(ty)) actTT = v; addLeg(tm, g[1], v, ty); } }
-      openAct(g, team);
+      openAct(g, team); if (S.mode === "lines") renderLines();
     }
     else if (k === "lreset") { resetGameLine(g); actMsg = "✓ Back to the original line."; render(); openAct(g, team); }
     else if (k === "lupdate") applyActLine();
