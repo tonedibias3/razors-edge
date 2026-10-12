@@ -21,4 +21,7 @@ assert r.returncode == 0, r.stderr
 out = os.path.join(ROOT, "site")
 os.makedirs(out, exist_ok=True)
 open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(html)
+import shutil
+for f in os.listdir(os.path.join(ROOT, "app", "icons")):
+    shutil.copy(os.path.join(ROOT, "app", "icons", f), os.path.join(out, f))
 print("site/index.html", round(len(html) / 1024), "KB")
