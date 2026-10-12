@@ -134,6 +134,9 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 .fscore.lose { color: var(--ink2); font-weight: 500; }
 .fin { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink2); margin-left: 4px; }
 @media (max-width: 520px) { #l-table .fin { display: none; } }
+#l-table .sub.wx { font-size: 10px; margin: 2px 0 0; white-space: nowrap; color: var(--muted); }
+#l-table .sub.wx.hot { color: #f0a35a; font-weight: 600; }
+.wxl { margin-top: 6px; }
 #l-table .sub.mv { font-size: 10px; margin-top: 0; opacity: .85; white-space: nowrap; }
 .stp { display: inline-flex; align-items: center; gap: 4px; }
 .stp .mini { height: 30px; width: 30px; padding: 0; }
@@ -2147,7 +2150,7 @@ const Sync = (() => {
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini${S.legs.some((l) => l.week === g[1] && l.team === g[4] && lt(l) === t) ? " ins" : ""}" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
       html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
-        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou mu"><button type="button" class="mini" data-mu="${esc(g[3])}|${esc(g[4])}|${g[1]}" title="Compare both teams' offense and defense" aria-label="Team stats matchup">Stats</button></span><span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
+        `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : wxChip(g)}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou mu"><button type="button" class="mini" data-mu="${esc(g[3])}|${esc(g[4])}|${g[1]}" title="Compare both teams' offense and defense" aria-label="Team stats matchup">Stats</button></span><span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
   }
@@ -2183,12 +2186,32 @@ const Sync = (() => {
     const side = (x) => (g[4] === team ? -x : x), rows = h.slice(-6);
     return `<div class="notes" style="margin:10px 0 0"><strong>Line movement</strong>${h.length < 2 ? " · no movement yet" : ""}<br>` + rows.map((r, i) => `${etFmt(r[0], true)}: ${esc(team)} ${spr(side(r[1]))} · total ${r[2]}${i === 0 && h.length > rows.length ? " (older moves not shown)" : ""}`).join("<br>") + `</div>`;
   };
+  // kickoff weather (Open-Meteo, filled in by the refresh): a small tag only when it could matter, full detail in the popup
+  const wxOf = (g) => (LG === "nfl" && D.weather && D.weather.nfl && D.weather.nfl[g[0] + "|" + g[1] + "|" + g[3] + "|" + g[4]]) || null;
+  const wxFlags = (w) => { const f = []; if (!w || w.roof === "dome") return f; if (w.wind >= 15 || w.gust >= 25) f.push("wind"); if (w.temp <= 35) f.push("cold"); else if (w.temp >= 90) f.push("hot"); if (w.pop >= 50 && w.rain >= 0.03) f.push(w.temp <= 32 ? "snow" : "rain"); return f; };
+  const wxChip = (g) => {
+    const w = wxOf(g); if (!w || g[5] !== null) return "";
+    if (w.roof === "dome") return '<span class="sub wx dome" title="Played indoors">Dome</span>';
+    const f = wxFlags(w); if (!f.length) return "";
+    const bits = [];
+    if (f.includes("wind")) bits.push(`${w.wind} mph`);
+    if (f.includes("cold") || f.includes("hot")) bits.push(`${w.temp}°`);
+    if (f.includes("rain")) bits.push(`${w.pop}% rain`); if (f.includes("snow")) bits.push(`${w.pop}% snow`);
+    return `<span class="sub wx hot" title="Kickoff weather. Tap the game for details.">${bits.join(" · ")}</span>`;
+  };
+  const wxLine = (g) => {
+    const w = wxOf(g); if (!w) return "";
+    if (w.roof === "dome") return '<p class="meta wxl">Kickoff weather: indoors (dome), so weather does not matter.</p>';
+    const f = wxFlags(w), roofNote = w.roof === "retract" ? " The roof may be closed." : "";
+    return `<p class="meta wxl">Kickoff weather: ${w.temp}°F, wind ${w.wind} mph${w.gust && w.gust > w.wind ? " (gusts " + w.gust + ")" : ""}${w.pop !== null ? ", " + w.pop + "% chance of precipitation" : ""}.${roofNote}` +
+      (f.length && w.roof !== "retract" ? ` <strong>${f.includes("wind") || f.includes("snow") || f.includes("rain") || f.includes("cold") ? "Wind, cold and wet weather usually hold scoring down. The total has probably priced some of it in, so see whether the number moved." : "Heat can wear teams down late."}</strong>` : "") + `</p>`;
+  };
   function openAct(g, team) {
     if (!act || act.team !== team || act.g !== g) { actTT = null; actMsg = ""; }
     act = { g, team, tt: team + g[1] };
     const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1] && lt(l) === "spread"), on = picked(g, "spread", team);
     const n = S.legs.length, imp = impOf(g, team), ttv = actTT !== null && act.tt === team + g[1] ? actTT : imp === null ? 0 : Math.round(imp * 2) / 2;
-    $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>` +
+    $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>${wxLine(g)}` +
       `<div style="display:grid;gap:8px;margin-top:10px">` +
       `<button type="button" class="chip ${on ? "" : "primary"}" data-ac="save">${on ? "★ Saved. Tap to remove" : "☆ Save this pick"}</button>` +
       `<button type="button" class="chip ${inSlip ? "" : "primary"}" data-ac="tease">${inSlip ? "Remove from teaser" : `+ Add to teaser (${S.pts} pts → ${spr(Math.round((line + S.pts) * 10) / 10)})`}</button>` +
