@@ -137,6 +137,14 @@ input[type="text"], input[type="number"] { height: 42px; width: 100%; border: 1p
 #l-table .sub.wx { font-size: 10px; margin: 2px 0 0; white-space: nowrap; color: var(--muted); }
 #l-table .sub.wx.hot { color: #f0a35a; font-weight: 600; }
 .wxl { margin-top: 6px; }
+#l-table .sub.inj { font-size: 10px; margin: 2px 0 0; font-weight: 700; }
+#l-table .sub.inj.bad { color: var(--bad); }
+#l-table .sub.inj.q { color: #f0a35a; }
+.injbox { margin-top: 8px; font-size: 13px; }
+.injbox summary { cursor: pointer; color: var(--ink2); }
+.inj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.inj-row { display: flex; justify-content: space-between; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+.inj-s.bad { color: var(--bad); font-weight: 700; } .inj-s.q { color: #f0a35a; font-weight: 700; }
 #l-table .sub.mv { font-size: 10px; margin-top: 0; opacity: .85; white-space: nowrap; }
 .stp { display: inline-flex; align-items: center; gap: 4px; }
 .stp .mini { height: 30px; width: 30px; padding: 0; }
@@ -2149,7 +2157,7 @@ const Sync = (() => {
       if (S.ls === "time" && gk !== last) { last = gk; const w = window_(g[2], g[10]); html += `<tr class="grp"><td colspan="5">${esc(dayName(g[2]))}${g[10] ? " · " + t12(g[10]) + " ET" : ""}${w ? " · " + w : ""}</td></tr>`; }
       const hi = (g[7] + g[6]) / 2, ai = (g[7] - g[6]) / 2, fin = g[5] !== null;
       const ou = (t) => `<button type="button" class="mini${S.legs.some((l) => l.week === g[1] && l.team === g[4] && lt(l) === t) ? " ins" : ""}" data-pick="${esc(g[3])}|${esc(g[4])}|${t}|" aria-pressed="${picked(g, t)}" aria-label="Save ${t} ${g[7]}">${t === "over" ? "O" : "U"}</button>`;
-      html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span><span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span><span class="sub fl">${tl(g[4])}</span></td>` +
+      html += `<tr style="--tc:${tcol(g[3])};--tc2:${tcol(g[4])}"><td>${teamBtn(g[3])}<span class="sub">${fin ? `<span class="fscore ${g[8] < g[9] ? "lose" : ""}">${g[8]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + ai}</span>${injTag(g, g[3])}<span class="sub fl">${tl(g[3])}</span></td>${cell(g, g[3])}${cell(g, g[4])}<td class="hm">${teamBtn(g[4])}<span class="sub">${fin ? `<span class="fscore ${g[9] < g[8] ? "lose" : ""}">${g[9]}</span><span class="fin">final</span>` : '<span class="iml">implied </span>' + hi}</span>${injTag(g, g[4])}<span class="sub fl">${tl(g[4])}</span></td>` +
         `<td class="num"><strong>${g[7] === null ? "–" : g[7]}</strong>${lineEdited(g) ? `<span class="fin" title="You changed this line" style="margin:0 0 0 4px">✎</span>` : ""}${(() => { const o = openOf(g); return o && g[5] === null && o[2] !== g[7] && g[7] !== null ? `<span class="sub mv">was ${o[2]}</span>` : ""; })()}${fin ? `<span class="sub">${g[8] + g[9] > g[7] ? "Over" : g[8] + g[9] < g[7] ? "Under" : "Push"} (${g[8] + g[9]})</span>` : ""}${g[7] === null ? "" : wxChip(g)}${g[7] === null ? "" : `<span class="ou">${ou("over")}${ou("under")}</span>`}${S.ls !== "time" ? `<span class="sub">${new Date(g[2] + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}${g[10] ? " " + t12(g[10]).replace(":00", "").replace(" ", "") : ""}</span>` : ""}<span class="ou mu"><button type="button" class="mini" data-mu="${esc(g[3])}|${esc(g[4])}|${g[1]}" title="Compare both teams' offense and defense" aria-label="Team stats matchup">Stats</button></span><span class="ou h2h"><button type="button" class="mini" data-h2h="${esc(g[3])}|${esc(g[4])}" title="Head to head history" aria-label="Head to head history">H2H</button></span></td></tr>`;
     }
     $("l-table").innerHTML = html + (games.length ? "" : `<tr><td colspan="5" class="sub">No games match this filter in week ${S.week}.</td></tr>`) + "</tbody>";
@@ -2186,6 +2194,24 @@ const Sync = (() => {
     const side = (x) => (g[4] === team ? -x : x), rows = h.slice(-6);
     return `<div class="notes" style="margin:10px 0 0"><strong>Line movement</strong>${h.length < 2 ? " · no movement yet" : ""}<br>` + rows.map((r, i) => `${etFmt(r[0], true)}: ${esc(team)} ${spr(side(r[1]))} · total ${r[2]}${i === 0 && h.length > rows.length ? " (older moves not shown)" : ""}`).join("<br>") + `</div>`;
   };
+  // injuries (ESPN, filled in by the refresh): a small tag on the team when it could move the game, the full list in the popup
+  const injOf = (t) => (LG === "nfl" && D.injuries && D.injuries.nfl && D.injuries.nfl[t]) || [];
+  const injTag = (g, t) => {
+    if (g[5] !== null) return "";
+    const L = injOf(t); if (!L.length) return "";
+    const bad = (r) => r[2] === "Out" || r[2] === "IR" || r[2] === "Doubtful";
+    const qb = L.find((r) => r[1] === "QB");
+    if (qb) return `<span class="sub inj ${bad(qb) ? "bad" : "q"}" title="${esc(qb[0])}: ${esc(qb[2])}${qb[3] ? " (" + esc(qb[3]) + ")" : ""}">QB ${esc(qb[2] === "Questionable" ? "Q" : qb[2])}</span>`;
+    const sk = L.filter((r) => bad(r) && ["RB", "WR", "TE"].includes(r[1])), all = L.filter(bad);
+    if (sk.length) return `<span class="sub inj bad" title="${esc(sk.map((r) => r[0] + " " + r[1] + " " + r[2]).join(", "))}">${sk.length} skill out</span>`;
+    if (all.length >= 3) return `<span class="sub inj q">${all.length} out</span>`;
+    return "";
+  };
+  const injBlock = (g) => {
+    if (LG !== "nfl" || !D.injuries || !D.injuries.ok) return "";
+    const side = (t) => { const L = injOf(t).filter((r) => r[2] !== "Day-to-day").slice(0, 8); return `<div><strong>${esc(t)}</strong>` + (L.length ? L.map((r) => `<div class="inj-row"><span>${esc(r[0])} <span class="sub" style="margin:0">${esc(r[1])}${r[3] ? " · " + esc(r[3]) : ""}</span></span><span class="inj-s ${r[2] === "Questionable" ? "q" : "bad"}">${esc(r[2])}</span></div>`).join("") : '<div class="sub">Nothing listed</div>') + `</div>`; };
+    return `<details class="injbox"><summary>Injury report · ${esc(D.injuries.at || "")}</summary><div class="inj-grid">${side(g[3])}${side(g[4])}</div></details>`;
+  };
   // kickoff weather (Open-Meteo, filled in by the refresh): a small tag only when it could matter, full detail in the popup
   const wxOf = (g) => (LG === "nfl" && D.weather && D.weather.nfl && D.weather.nfl[g[0] + "|" + g[1] + "|" + g[3] + "|" + g[4]]) || null;
   const wxFlags = (w) => { const f = []; if (!w || w.roof === "dome") return f; if (w.wind >= 15 || w.gust >= 25) f.push("wind"); if (w.temp <= 35) f.push("cold"); else if (w.temp >= 90) f.push("hot"); if (w.pop >= 50 && w.rain >= 0.03) f.push(w.temp <= 32 ? "snow" : "rain"); return f; };
@@ -2211,7 +2237,7 @@ const Sync = (() => {
     act = { g, team, tt: team + g[1] };
     const line = sideLine(g, team), opp = g[4] === team ? g[3] : g[4], inSlip = S.legs.some((l) => l.team === team && l.week === g[1] && lt(l) === "spread"), on = picked(g, "spread", team);
     const n = S.legs.length, imp = impOf(g, team), ttv = actTT !== null && act.tt === team + g[1] ? actTT : imp === null ? 0 : Math.round(imp * 2) / 2;
-    $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>${wxLine(g)}` +
+    $("ac-body").innerHTML = `<h2 id="ac-title" style="font-size:20px">${esc(team)} ${spr(line)}</h2><p class="meta">${g[4] === team ? "vs" : "at"} ${esc(opp)} · week ${g[1]}</p>${wxLine(g)}${injBlock(g)}` +
       `<div style="display:grid;gap:8px;margin-top:10px">` +
       `<button type="button" class="chip ${on ? "" : "primary"}" data-ac="save">${on ? "★ Saved. Tap to remove" : "☆ Save this pick"}</button>` +
       `<button type="button" class="chip ${inSlip ? "" : "primary"}" data-ac="tease">${inSlip ? "Remove from teaser" : `+ Add to teaser (${S.pts} pts → ${spr(Math.round((line + S.pts) * 10) / 10)})`}</button>` +
